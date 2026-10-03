@@ -8,7 +8,10 @@ build_dir="$(mktemp -d "${tmp_root%/}/oreslang-web-demo.XXXXXX")"
 cleanup() {
   rm -rf "$build_dir"
 }
-trap cleanup 0 HUP INT TERM
+trap cleanup 0
+trap 'exit 129' HUP
+trap 'exit 130' INT
+trap 'exit 143' TERM
 
 cat index.ores health.ores WebServer.ores > "$build_dir/WebServer.ores"
 
