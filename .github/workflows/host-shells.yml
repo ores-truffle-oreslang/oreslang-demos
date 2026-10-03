@@ -26,8 +26,15 @@ jobs:
           sh -n cli/run.sh
           sh -n desktop-app/run.sh
           sh -n web-server/run.sh
+          sh -n interop/run-java-embeds-oreslang.sh
+          sh -n interop/run-oreslang-embeds-java.sh
       - name: Verify authored Oreslang file counts
         run: |
           test "$(find cli -maxdepth 1 -name '*.ores' | wc -l)" -eq 3
           test "$(find web-server -maxdepth 1 -name '*.ores' | wc -l)" -eq 3
           test "$(find desktop-app -maxdepth 1 -name '*.ores' | wc -l)" -ge 4
+          test "$(find interop -maxdepth 1 -name '*.ores' | wc -l)" -ge 1
+      - name: Verify mixed-source interop examples
+        run: |
+          grep -q 'define module embedded_math' interop/JavaEmbedsOreslang.java
+          grep -q 'public final class HelloFromGeneratedJava' interop/OreslangEmbedsJava.ores
