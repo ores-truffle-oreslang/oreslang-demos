@@ -1,0 +1,28 @@
+name: host-shells
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  verify-host-shells:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+      - name: Compile desktop host
+        run: javac desktop-app/DesktopLauncher.java
+      - name: Compile web host
+        run: javac web-server/WebServer.java
+      - name: Check shell scripts
+        run: |
+          sh -n cli/run.sh
+          sh -n desktop-app/run.sh
+          sh -n web-server/run.sh
