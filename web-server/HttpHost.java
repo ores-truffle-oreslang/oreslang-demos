@@ -35,8 +35,8 @@ public final class HttpHost {
             throw new IllegalArgumentException("not a regular Oreslang source file: " + source);
         }
 
-        Map<String, Route> routes = loadRoutes(source);
         int port = parsePort(System.getenv().getOrDefault("PORT", "8080"));
+        Map<String, Route> routes = loadRoutes(source);
 
         HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", port), 0);
         server.createContext("/", exchange -> handle(exchange, routes));
