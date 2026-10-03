@@ -8,7 +8,10 @@ build_dir="$(mktemp -d "${tmp_root%/}/oreslang-desktop-demo.XXXXXX")"
 cleanup() {
   rm -rf "$build_dir"
 }
-trap cleanup 0 HUP INT TERM
+trap cleanup 0
+trap 'exit 129' HUP
+trap 'exit 130' INT
+trap 'exit 143' TERM
 
 cat title.ores body.ores window.ores DesktopApp.ores > "$build_dir/DesktopApp.ores"
 
