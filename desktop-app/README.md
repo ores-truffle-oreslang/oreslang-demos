@@ -15,6 +15,14 @@ Run:
 bash run.sh
 ```
 
-The script stitches the four Oreslang files into one temporary program, runs it, and passes the resulting application manifest to the native host.
+The script stitches the four Oreslang files into one securely-created temporary program, runs it, validates the manifest, and passes it to the native host.
+
+For headless CI, the host exposes a validation-only mode:
+
+```bash
+java DesktopHost.java --manifest-only /path/to/stitched-app.ores
+```
+
+The host bounds guest runtime/output, drains stdout and stderr concurrently, and validates title and window dimensions before creating a native window.
 
 Set `ORESLANG_COMPILER` if `oreslang-compiler` is not on `PATH`.

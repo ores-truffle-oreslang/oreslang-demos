@@ -17,10 +17,10 @@ jobs:
         with:
           distribution: temurin
           java-version: "21"
-      - name: Compile desktop host
-        run: javac desktop-app/DesktopHost.java
-      - name: Compile web host
-        run: javac web-server/HttpHost.java
+      - name: Compile desktop host with warnings
+        run: javac -Xlint:all desktop-app/DesktopHost.java
+      - name: Compile web host with warnings
+        run: javac -Xlint:all web-server/HttpHost.java
       - name: Check shell scripts
         run: |
           sh -n cli/run.sh
@@ -28,6 +28,13 @@ jobs:
           sh -n web-server/run.sh
           sh -n interop/run-java-embeds-oreslang.sh
           sh -n interop/run-oreslang-embeds-java.sh
+      - name: Verify secure temporary-directory handling
+        run: |
+          grep -q 'mktemp -d' cli/run.sh
+          grep -q 'mktemp -d' desktop-app/run.sh
+          grep -q 'mktemp -d' web-server/run.sh
+          grep -q 'mktemp -d' interop/run-oreslang-embeds-java.sh
+          ! grep -R --include='run*.sh' 'demo-\$\$\|interop-\$\$' cli desktop-app web-server interop
       - name: Verify authored Oreslang file counts
         run: |
           test "$(find cli -maxdepth 1 -name '*.ores' | wc -l)" -eq 3
