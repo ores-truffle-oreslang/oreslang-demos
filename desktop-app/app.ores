@@ -1,0 +1,12 @@
+define module desktop_copy
+  pub fnc title() => string {
+    return "Oreslang Desktop Demo";
+  }
+end
+
+pub routine main() => void {
+  stdio.println(desktop_copy.title());
+  stdio.println("This window is displaying output produced by an Oreslang program.");
+  stdio.println("The Java shell only supplies the native desktop window boundary.");
+  return;
+}
