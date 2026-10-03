@@ -18,11 +18,16 @@ jobs:
           distribution: temurin
           java-version: "21"
       - name: Compile desktop host
-        run: javac desktop-app/DesktopLauncher.java
+        run: javac desktop-app/DesktopHost.java
       - name: Compile web host
-        run: javac web-server/WebServer.java
+        run: javac web-server/HttpHost.java
       - name: Check shell scripts
         run: |
           sh -n cli/run.sh
           sh -n desktop-app/run.sh
           sh -n web-server/run.sh
+      - name: Verify authored Oreslang file counts
+        run: |
+          test "$(find cli -maxdepth 1 -name '*.ores' | wc -l)" -eq 3
+          test "$(find web-server -maxdepth 1 -name '*.ores' | wc -l)" -eq 3
+          test "$(find desktop-app -maxdepth 1 -name '*.ores' | wc -l)" -ge 4

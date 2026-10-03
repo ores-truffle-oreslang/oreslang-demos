@@ -1,6 +1,10 @@
 # CLI demo
 
-A pure Oreslang command-line program.
+A pure Oreslang command-line program assembled from exactly three source files:
+
+1. `math.ores`
+2. `messages.ores`
+3. `main.ores`
 
 Run:
 
@@ -8,16 +12,6 @@ Run:
 bash run.sh
 ```
 
-Or directly:
-
-```bash
-oreslang-compiler --platform=server main.ores
-```
-
-Static check through the public developer CLI:
-
-```bash
-oreslang check main.ores
-```
+`run.sh` stitches the three files into one temporary source unit and executes it with `oreslang-compiler`.
 
 Expected output ends with `42`.

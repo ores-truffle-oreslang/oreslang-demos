@@ -1,6 +1,13 @@
 # Desktop app demo
 
-This demo keeps the application copy in Oreslang and uses a minimal Swing shell to provide the native window that the current guest API does not yet expose.
+The application is authored across four Oreslang files:
+
+1. `title.ores`
+2. `body.ores`
+3. `window.ores`
+4. `DesktopApp.ores`
+
+Oreslang owns the application title, body text, width, and height. `DesktopHost.java` is only the generic Swing/native-window capability boundary that the current guest API does not yet expose directly.
 
 Run:
 
@@ -8,12 +15,6 @@ Run:
 bash run.sh
 ```
 
-The shell launches `app.ores` with the platform matching the host OS, captures the guest's stdout, and renders it in a desktop window.
-
-You can validate the Oreslang source independently:
-
-```bash
-oreslang check app.ores
-```
+The script stitches the four Oreslang files into one temporary program, runs it, and passes the resulting application manifest to the native host.
 
 Set `ORESLANG_COMPILER` if `oreslang-compiler` is not on `PATH`.

@@ -1,16 +1,10 @@
-define module demo_math
-  pub fnc add(int a, int b) => int {
-    return a + b;
-  }
-end
-
 pub routine main() => void {
   const left = 19;
   const right = 23;
   val answer = demo_math.add(left, right);
 
-  stdio.println("Oreslang CLI demo");
-  stdio.println("19 + 23 =");
+  stdio.println(demo_messages.title());
+  stdio.println(demo_messages.equation());
   stdio.println(answer);
   return;
 }

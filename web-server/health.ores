@@ -1,4 +1,5 @@
-pub routine main() => void {
-  stdio.stdout.write("{\"status\":\"ok\",\"language\":\"oreslang\"}");
-  return;
-}
+define module web_health
+  pub fnc body() => string {
+    return "{\"status\":\"ok\",\"language\":\"oreslang\"}";
+  }
+end
