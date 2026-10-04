@@ -54,9 +54,9 @@ final class SecureJitHotReloadDomainTest {
             assertTrue(hot.guestPolicy().capabilities().isEmpty(),
                     "untrusted hot-loaded code gets no ambient authority");
             assertTrue(hot.guestPolicy().maxHeapBytes()
-                    <= IsolatePolicy.untrustedActor().maxHeapBytes());
+                    <= IsolatePolicy.strictFaas().maxHeapBytes());
             assertTrue(hot.guestPolicy().maxWallTime().compareTo(
-                    IsolatePolicy.untrustedActor().maxWallTime()) <= 0);
+                    IsolatePolicy.strictFaas().maxWallTime()) <= 0);
         }
     }
 

@@ -328,6 +328,26 @@ public final class HotReloadManager implements AutoCloseable {
         }
     }
 
+    /**
+     * Starts one staged generation while holding the control-plane lock so
+     * retire/close cannot close its context between admission and eval.
+     */
+    private synchronized Value startGeneration(Generation generation) {
+        ensureOpen();
+        requireOwned(generation);
+        if (!generation.state.compareAndSet(GenerationState.STAGED, GenerationState.STARTED)) {
+            throw new IllegalStateException(
+                    "generation can only start from STAGED; current state=" + generation.state.get());
+        }
+        try {
+            return generation.context.eval(generation.source);
+        } catch (RuntimeException | Error failure) {
+            generation.state.set(GenerationState.FAILED);
+            generationFailed(generation);
+            throw failure;
+        }
+    }
+
     private synchronized void generationFailed(Generation generation) {
         if (!generations.containsKey(generation.id())) return;
         active.compareAndSet(generation, null);
@@ -426,7 +446,9 @@ public final class HotReloadManager implements AutoCloseable {
         // UntrustedActor ambient authority is deny-by-default. Narrow request/
         // response and Recipient capabilities are object capabilities and are not
         // represented by this ambient capability set.
-        IsolatePolicy ceiling = IsolatePolicy.untrustedActor();
+        // Current-main hard sandbox ceiling. The dedicated UntrustedActor runtime
+        // may impose tighter per-actor limits on top of this guest-context ceiling.
+        IsolatePolicy ceiling = IsolatePolicy.strictFaas();
         return new IsolatePolicy(
                 Set.of(),
                 Math.min(isolated.maxHeapBytes(), ceiling.maxHeapBytes()),
@@ -520,18 +542,7 @@ public final class HotReloadManager implements AutoCloseable {
 
         /** Starts the staged generation exactly once without publishing it. */
         public Value start() {
-            owner.ensureOpen();
-            if (!state.compareAndSet(GenerationState.STAGED, GenerationState.STARTED)) {
-                throw new IllegalStateException(
-                        "generation can only start from STAGED; current state=" + state.get());
-            }
-            try {
-                return context.eval(source);
-            } catch (RuntimeException failure) {
-                state.set(GenerationState.FAILED);
-                owner.generationFailed(this);
-                throw failure;
-            }
+            return owner.startGeneration(this);
         }
 
         /** Publish this successfully started generation for new work. */
