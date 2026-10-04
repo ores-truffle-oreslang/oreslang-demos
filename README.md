@@ -1,38 +1,30 @@
-# Oreslang demos
+# Oreslang
 
-Runnable example applications for Oreslang.
+Oreslang is a statically typed GraalVM/Truffle language with nominal typing by default, explicit structural-call opt-ins, actor-oriented concurrency, hot-loadable code generations, and deny-by-default isolate capabilities.
 
-## Layout
+This repository contains the Java/Truffle reference implementation.
 
-- `cli/` — a pure Oreslang command-line application assembled from three `.ores` files.
-- `desktop-app/` — a native desktop host whose application title, size, and content are defined by four Oreslang files.
-- `web-server/` — a local HTTP host whose route table, content types, and response bodies are defined by three Oreslang files, with `WebServer.ores` as the composition root.
-- `interop/` — mixed Java/Oreslang source demos in both directions.
+The language is intentionally opinionated:
 
-## Requirements
+- static nominal typing by default, with explicit structural compatibility at selected call boundaries;
+- private functions by default (`fnc`), with `pub` for exported functions;
+- class methods omit `fnc` and have an implicit `self` receiver;
+- one return value only (tuples/arrays/records are ordinary single values);
+- `val`, `const`, and `let` are the only variable declarations;
+- actor heaps are isolated: mutable values are never shared between actors;
+- immutable/sendable values may be message-passed, and explicitly frozen regions may be shared read-only;
+- isolates are stricter security boundaries for FaaS/mobile workloads, with host access denied and Oreslang APIs capability-gated by default;
+- JIT, AOT/interpreter, and AOT-host + guest-JIT hybrid execution profiles;
+- file-granular incremental compilation with stable code-unit/package identities and reverse-dependency invalidation;
+- flat optional file namespaces and flat modules (neither may nest);
+- class-level `static fnc` functions separated from receiver methods;
+- first-class function aliases/types and block-only `|args| -> { ... }` lambdas;
+- lexical closures with persistent captured environments;
+- affine ownership, move checking, `&T` / `&mut T` borrows, immutable-by-default parameters, and `Type mut name` owned-mutation syntax;
+- hot reload creates a fresh versioned guest context/generation without requiring FFI or dynamic native libraries;
+- direct method calls reuse shared class method definitions; extracted method values bind their receiver safely without rebinding `self`;
+- multiple named modules may appear in one source file;
+- explicit `return` statements;
+- generics, tuples, arrays, complex numbers, futures/`await`, lambdas, `defer`, and `try/catch/finally` are language-level features.
 
-- `oreslang-compiler` on `PATH`, or set `ORESLANG_COMPILER=/path/to/oreslang-compiler`.
-- A JDK for the small desktop/window and HTTP-listener host adapters.
-- Optional: the public `oreslang` CLI for non-executing checks.
-- For the in-process Java -> Oreslang embedding demo, set `ORESLANG_SOURCE_DIR` to a local checkout of `oreslang-source.java` (or provide `ORESLANG_CLASSPATH` directly).
-
-## Multi-file demos
-
-The current runtime can execute a single source unit reliably, while runtime cross-file linking is still being hardened. These demos therefore make the source-unit boundary explicit: each `run.sh` concatenates its ordered `.ores` files into one temporary `.ores` program before execution.
-
-That keeps the examples genuinely multi-file at authoring time without hiding application logic in Java or depending on an unfinished runtime linker.
-
-The Java files that remain are deliberately generic capability adapters:
-
-- `desktop-app/DesktopHost.java` owns only the Swing/native-window boundary.
-- `web-server/HttpHost.java` owns only the JDK HTTP-listener boundary.
-
-The actual demo configuration, routes, content types, copy, math, and response bodies live in Oreslang.
-
-## Java / Oreslang interop
-
-`interop/JavaEmbedsOreslang.java` contains an Oreslang program directly in a Java text block and evaluates it in-process through Graal Polyglot. This is true Java-hosted Oreslang execution; it does not spawn the Oreslang CLI.
-
-`interop/OreslangEmbedsJava.ores` demonstrates the reverse source direction using the runtime surface available today: an Oreslang program owns and emits Java source, which the host script then runs with Java source-file mode. This is build-time/code-generation interop, not unrestricted guest reflection.
-
-Direct Oreslang -> Java object/method calls should use a future capability-gated host-binding API with explicit exports. The demos intentionally do not pretend that unrestricted `Java.type()`-style host access exists.
+The first implementation is developed on a feature branch and will land with an executable Truffle skeleton, grammar/specification, examples, tests, and CI.

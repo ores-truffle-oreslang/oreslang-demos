@@ -1,5 +1,0 @@
-define module demo_math
-  pub fnc add(int a, int b) => int {
-    return a + b;
-  }
-end

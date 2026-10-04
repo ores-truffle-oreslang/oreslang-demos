@@ -1,5 +1,0 @@
-define module desktop_body
-  pub fnc value() => string {
-    return "This native window is configured and populated by an Oreslang program.";
-  }
-end
