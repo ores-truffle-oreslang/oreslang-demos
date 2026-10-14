@@ -1,0 +1,36 @@
+name: AI example inventory integrity
+
+on:
+  pull_request:
+    paths:
+      - 'ai/**'
+      - 'AGENTS.md'
+      - 'cli/*.ores'
+      - 'desktop-app/*.ores'
+      - 'web-server/*.ores'
+      - 'interop/*.ores'
+      - '.github/workflows/ai-inventory.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'ai/**'
+      - 'AGENTS.md'
+      - 'cli/*.ores'
+      - 'desktop-app/*.ores'
+      - 'web-server/*.ores'
+      - 'interop/*.ores'
+      - '.github/workflows/ai-inventory.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  inventory:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.20.0'
+      - name: Verify pinned example file integrity (NOT compilation)
+        run: node ai/check-examples.mjs

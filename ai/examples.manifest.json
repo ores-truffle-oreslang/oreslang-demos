@@ -1,0 +1,211 @@
+{
+  "schema_version": 1,
+  "title": "Oreslang public historical example inventory",
+  "generated_from": {
+    "repository": "ores-truffle-oreslang/oreslang-demos",
+    "source_commit": "6fd8930e167ff6dbd372a15cd1049427df69569b",
+    "kind": "public-reviewed-demo-source"
+  },
+  "applicability": "historical-demo-sources; not a released language specification",
+  "warning": "These source files are inventoried and blob-integrity-checked, NOT compiler-verified. Some syntax is legacy. Do not infer current compiler acceptance, expected runtime output, or Java/LLVM parity.",
+  "examples": [
+    {
+      "id": "cli-entry",
+      "path": "cli/main.ores",
+      "description": "CLI entry point",
+      "source": {
+        "repository": "ores-truffle-oreslang/oreslang-demos",
+        "commit": "6fd8930e167ff6dbd372a15cd1049427df69569b",
+        "blob_sha": "5fe706dfee3e128fac274b3f4e0d5788ef8f31b4"
+      },
+      "compatibility": "legacy-or-unassessed",
+      "verification": {
+        "status": "not-run",
+        "backend": null,
+        "compiler_commit": null,
+        "command": null,
+        "evidence": null
+      }
+    },
+    {
+      "id": "module-arithmetic",
+      "path": "cli/math.ores",
+      "description": "Named module arithmetic",
+      "source": {
+        "repository": "ores-truffle-oreslang/oreslang-demos",
+        "commit": "6fd8930e167ff6dbd372a15cd1049427df69569b",
+        "blob_sha": "0f66c483765bae1d539575c3f161e4587be1575b"
+      },
+      "compatibility": "legacy-or-unassessed",
+      "verification": {
+        "status": "not-run",
+        "backend": null,
+        "compiler_commit": null,
+        "command": null,
+        "evidence": null
+      }
+    },
+    {
+      "id": "module-strings",
+      "path": "cli/messages.ores",
+      "description": "Module string functions",
+      "source": {
+        "repository": "ores-truffle-oreslang/oreslang-demos",
+        "commit": "6fd8930e167ff6dbd372a15cd1049427df69569b",
+        "blob_sha": "6cd736f4b2d72faa4b979638cb7990e4f7f799ca"
+      },
+      "compatibility": "legacy-or-unassessed",
+      "verification": {
+        "status": "not-run",
+        "backend": null,
+        "compiler_commit": null,
+        "command": null,
+        "evidence": null
+      }
+    },
+    {
+      "id": "desktop-entry",
+      "path": "desktop-app/DesktopApp.ores",
+      "description": "Desktop composition entry point",
+      "source": {
+        "repository": "ores-truffle-oreslang/oreslang-demos",
+        "commit": "6fd8930e167ff6dbd372a15cd1049427df69569b",
+        "blob_sha": "7d4c88341378a27b0d853ad3a7bb7e5cf83afa39"
+      },
+      "compatibility": "legacy-or-unassessed",
+      "verification": {
+        "status": "not-run",
+        "backend": null,
+        "compiler_commit": null,
+        "command": null,
+        "evidence": null
+      }
+    },
+    {
+      "id": "desktop-body",
+      "path": "desktop-app/body.ores",
+      "description": "Desktop body module",
+      "source": {
+        "repository": "ores-truffle-oreslang/oreslang-demos",
+        "commit": "6fd8930e167ff6dbd372a15cd1049427df69569b",
+        "blob_sha": "20603f1db75ae5148712175c0a7abee26f692303"
+      },
+      "compatibility": "legacy-or-unassessed",
+      "verification": {
+        "status": "not-run",
+        "backend": null,
+        "compiler_commit": null,
+        "command": null,
+        "evidence": null
+      }
+    },
+    {
+      "id": "desktop-title",
+      "path": "desktop-app/title.ores",
+      "description": "Desktop title module",
+      "source": {
+        "repository": "ores-truffle-oreslang/oreslang-demos",
+        "commit": "6fd8930e167ff6dbd372a15cd1049427df69569b",
+        "blob_sha": "2e7f438bd8451d24a0bbff1d2ff0d00f1c44721d"
+      },
+      "compatibility": "legacy-or-unassessed",
+      "verification": {
+        "status": "not-run",
+        "backend": null,
+        "compiler_commit": null,
+        "command": null,
+        "evidence": null
+      }
+    },
+    {
+      "id": "desktop-window",
+      "path": "desktop-app/window.ores",
+      "description": "Desktop dimension values",
+      "source": {
+        "repository": "ores-truffle-oreslang/oreslang-demos",
+        "commit": "6fd8930e167ff6dbd372a15cd1049427df69569b",
+        "blob_sha": "43cc7fe471b948ce2630179f77ce9171353f6cb5"
+      },
+      "compatibility": "legacy-or-unassessed",
+      "verification": {
+        "status": "not-run",
+        "backend": null,
+        "compiler_commit": null,
+        "command": null,
+        "evidence": null
+      }
+    },
+    {
+      "id": "interop-generated-java",
+      "path": "interop/OreslangEmbedsJava.ores",
+      "description": "Oreslang-generated Java source",
+      "source": {
+        "repository": "ores-truffle-oreslang/oreslang-demos",
+        "commit": "6fd8930e167ff6dbd372a15cd1049427df69569b",
+        "blob_sha": "bf8b412ccfe9f2307457603b065ad0dfc2819922"
+      },
+      "compatibility": "legacy-or-unassessed",
+      "verification": {
+        "status": "not-run",
+        "backend": null,
+        "compiler_commit": null,
+        "command": null,
+        "evidence": null
+      }
+    },
+    {
+      "id": "web-entry",
+      "path": "web-server/WebServer.ores",
+      "description": "HTTP adapter routing composition",
+      "source": {
+        "repository": "ores-truffle-oreslang/oreslang-demos",
+        "commit": "6fd8930e167ff6dbd372a15cd1049427df69569b",
+        "blob_sha": "e0190b4b19801a4ee05c33b4a33d1a17dcbd6e3a"
+      },
+      "compatibility": "legacy-or-unassessed",
+      "verification": {
+        "status": "not-run",
+        "backend": null,
+        "compiler_commit": null,
+        "command": null,
+        "evidence": null
+      }
+    },
+    {
+      "id": "web-health",
+      "path": "web-server/health.ores",
+      "description": "Health response body",
+      "source": {
+        "repository": "ores-truffle-oreslang/oreslang-demos",
+        "commit": "6fd8930e167ff6dbd372a15cd1049427df69569b",
+        "blob_sha": "83450e372964f58de93bf1ab17f5b893cc5c0e49"
+      },
+      "compatibility": "legacy-or-unassessed",
+      "verification": {
+        "status": "not-run",
+        "backend": null,
+        "compiler_commit": null,
+        "command": null,
+        "evidence": null
+      }
+    },
+    {
+      "id": "web-html",
+      "path": "web-server/index.ores",
+      "description": "HTML response body",
+      "source": {
+        "repository": "ores-truffle-oreslang/oreslang-demos",
+        "commit": "6fd8930e167ff6dbd372a15cd1049427df69569b",
+        "blob_sha": "367b97be84fbf72474d98da556ee3f9719a5d55b"
+      },
+      "compatibility": "legacy-or-unassessed",
+      "verification": {
+        "status": "not-run",
+        "backend": null,
+        "compiler_commit": null,
+        "command": null,
+        "evidence": null
+      }
+    }
+  ]
+}
