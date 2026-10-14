@@ -29,8 +29,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # historical commit tree must be present
       - uses: actions/setup-node@v4
         with:
           node-version: '22.20.0'
-      - name: Verify pinned example file integrity (NOT compilation)
+      - name: Adversarial manifest tests (NOT compilation)
+        run: node --test ai/check-examples.test.mjs
+      - name: Verify historical Git tree and pinned source bytes (NOT compilation)
         run: node ai/check-examples.mjs

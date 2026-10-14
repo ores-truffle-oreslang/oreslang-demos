@@ -5,10 +5,11 @@ This is an **integrity-checked inventory of 11 existing public demonstration fil
 The inventory at [examples.manifest.json](examples.manifest.json) pins all entries to public Oreslang demos commit `6fd8930e167ff6dbd372a15cd1049427df69569b`. The `blob_sha` field is the Git object identity for each source file. Run:
 
 ```sh
+node --test ai/check-examples.test.mjs
 node ai/check-examples.mjs
 ```
 
-This verifies manifest shape, all declared source blobs, allowlisted paths, unique IDs, and complete coverage of the demo files. It **does not parse, compile, run, or typecheck Oreslang**. Every entry has `verification.status: "not-run"`; the checker rejects a claim of compiler verification without a separate evidence pipeline.
+This verifies manifest shape, complete Git history, the exact historical commit tree, all declared source blobs, allowlisted paths, unique IDs, and complete coverage of the demo files. Shallow checkouts are intentionally rejected. See [the provenance policy](PROVENANCE.md). It **does not parse, compile, run, or typecheck Oreslang**. Every entry has `verification.status: "not-run"`; the checker rejects a claim of compiler verification without a separate evidence pipeline.
 
 ## Using these examples safely
 
