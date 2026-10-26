@@ -14,6 +14,6 @@ trap 'exit 129' HUP
 trap 'exit 130' INT
 trap 'exit 143' TERM
 
-../scripts/stitch-ores.sh "$build_dir/DesktopApp.ores" title.ores body.ores window.ores DesktopApp.ores
+sh ../scripts/stitch-ores.sh "$build_dir/DesktopApp.ores" title.ores body.ores window.ores DesktopApp.ores
 
 java DesktopHost.java "$build_dir/DesktopApp.ores"
