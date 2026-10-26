@@ -1,5 +1,6 @@
 #!/usr/bin/env sh
 set -eu
+umask 077
 
 cd "$(dirname "$0")"
 tmp_root="${TMPDIR:-/tmp}"
@@ -14,6 +15,6 @@ trap 'exit 130' INT
 trap 'exit 143' TERM
 
 compiler="${ORESLANG_COMPILER:-oreslang-compiler}"
-cat math.ores messages.ores main.ores > "$build_dir/main.ores"
+../scripts/stitch-ores.sh "$build_dir/main.ores" math.ores messages.ores main.ores
 
 "$compiler" --platform=server "$build_dir/main.ores"
