@@ -22,8 +22,10 @@ jobs:
           java-version: "21"
       - name: Compile desktop host with warnings
         run: javac -Xlint:all desktop-app/DesktopHost.java
-      - name: Compile web host with warnings
-        run: javac -Xlint:all web-server/HttpHost.java
+      - name: Compile and test web host with warnings
+        run: |
+          javac -Xlint:all web-server/HttpHost.java web-server/HttpHostContractTest.java
+          java -cp web-server HttpHostContractTest
       - name: Check shell scripts
         run: |
           sh -n cli/run.sh
