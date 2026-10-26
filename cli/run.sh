@@ -15,6 +15,6 @@ trap 'exit 130' INT
 trap 'exit 143' TERM
 
 compiler="${ORESLANG_COMPILER:-oreslang-compiler}"
-../scripts/stitch-ores.sh "$build_dir/main.ores" math.ores messages.ores main.ores
+sh ../scripts/stitch-ores.sh "$build_dir/main.ores" math.ores messages.ores main.ores
 
 "$compiler" --platform=server "$build_dir/main.ores"
