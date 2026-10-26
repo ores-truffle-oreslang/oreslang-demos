@@ -1,5 +1,6 @@
 #!/usr/bin/env sh
 set -eu
+umask 077
 
 cd "$(dirname "$0")"
 tmp_root="${TMPDIR:-/tmp}"
@@ -13,6 +14,6 @@ trap 'exit 129' HUP
 trap 'exit 130' INT
 trap 'exit 143' TERM
 
-cat title.ores body.ores window.ores DesktopApp.ores > "$build_dir/DesktopApp.ores"
+sh ../scripts/stitch-ores.sh "$build_dir/DesktopApp.ores" title.ores body.ores window.ores DesktopApp.ores
 
 java DesktopHost.java "$build_dir/DesktopApp.ores"
