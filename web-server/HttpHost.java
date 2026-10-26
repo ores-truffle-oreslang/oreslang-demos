@@ -150,17 +150,32 @@ public final class HttpHost {
     }
 
     private static void validatePath(String path) {
-        if (path.isEmpty()
-                || path.charAt(0) != '/'
-                || path.length() > MAX_PATH_CHARS
-                || path.indexOf('\r') >= 0
-                || path.indexOf('\n') >= 0
-                || path.indexOf('\0') >= 0
-                || path.indexOf('?') >= 0
-                || path.indexOf('#') >= 0
-                || path.indexOf('\\') >= 0) {
+        if (!canonicalRequestTarget(path, null)) {
             throw new IllegalStateException("invalid route path: " + path);
         }
+    }
+
+    static boolean canonicalRequestTarget(String rawPath, String rawQuery) {
+        if (rawQuery != null || rawPath == null || rawPath.isEmpty()
+                || rawPath.charAt(0) != '/'
+                || rawPath.length() > MAX_PATH_CHARS
+                || rawPath.indexOf('%') >= 0
+                || rawPath.indexOf('\\') >= 0
+                || rawPath.indexOf('\r') >= 0
+                || rawPath.indexOf('\n') >= 0
+                || rawPath.indexOf('\0') >= 0
+                || rawPath.indexOf('?') >= 0
+                || rawPath.indexOf('#') >= 0
+                || rawPath.contains("//")
+                || rawPath.chars().anyMatch(ch -> ch < 0x21 || ch > 0x7e)) {
+            return false;
+        }
+        for (String segment : rawPath.split("/", -1)) {
+            if (".".equals(segment) || "..".equals(segment)) {
+                return false;
+            }
+        }
+        return true;
     }
 
     private static void validateContentType(String contentType) {
@@ -174,13 +189,20 @@ public final class HttpHost {
     }
 
     private static void handle(HttpExchange exchange, Map<String, Route> routes) throws IOException {
+        String rawPath = exchange.getRequestURI().getRawPath();
+        String rawQuery = exchange.getRequestURI().getRawQuery();
+        if (!canonicalRequestTarget(rawPath, rawQuery)) {
+            send(exchange, 400, "text/plain; charset=utf-8", "noncanonical request target\n");
+            return;
+        }
+
         if (!"GET".equalsIgnoreCase(exchange.getRequestMethod())) {
             exchange.getResponseHeaders().set("Allow", "GET");
             send(exchange, 405, "text/plain; charset=utf-8", "method not allowed\n");
             return;
         }
 
-        Route route = routes.get(exchange.getRequestURI().getPath());
+        Route route = routes.get(rawPath);
         if (route == null) {
             send(exchange, 404, "text/plain; charset=utf-8", "not found\n");
             return;
