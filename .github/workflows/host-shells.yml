@@ -31,6 +31,10 @@ jobs:
           sh -n web-server/run.sh
           sh -n interop/run-java-embeds-oreslang.sh
           sh -n interop/run-oreslang-embeds-java.sh
+          sh -n scripts/stitch-ores.sh
+          sh -n scripts/test-stitch.sh
+      - name: Verify bounded source stitching
+        run: sh scripts/test-stitch.sh
       - name: Verify secure temporary-directory handling
         run: |
           grep -q 'mktemp -d' cli/run.sh
@@ -44,6 +48,7 @@ jobs:
           test "$(find web-server -maxdepth 1 -name '*.ores' | wc -l)" -eq 3
           test "$(find desktop-app -maxdepth 1 -name '*.ores' | wc -l)" -ge 4
           test "$(find interop -maxdepth 1 -name '*.ores' | wc -l)" -ge 1
+          test -z "$(find cli desktop-app web-server interop -type l -name '*.ores' -print -quit)"
       - name: Verify mixed-source interop examples
         run: |
           grep -q 'define module embedded_math' interop/JavaEmbedsOreslang.java
