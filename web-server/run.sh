@@ -14,6 +14,6 @@ trap 'exit 129' HUP
 trap 'exit 130' INT
 trap 'exit 143' TERM
 
-../scripts/stitch-ores.sh "$build_dir/WebServer.ores" index.ores health.ores WebServer.ores
+sh ../scripts/stitch-ores.sh "$build_dir/WebServer.ores" index.ores health.ores WebServer.ores
 
 java HttpHost.java "$build_dir/WebServer.ores"
