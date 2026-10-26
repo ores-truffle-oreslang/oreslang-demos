@@ -8,7 +8,7 @@ trap 'rm -rf "$tmp"' 0 HUP INT TERM
 printf 'define module first as\nend' > "$tmp/first.ores"
 printf 'pub routine main() => void { return; }\n' > "$tmp/second.ores"
 
-"$root/scripts/stitch-ores.sh" "$tmp/combined.ores" "$tmp/first.ores" "$tmp/second.ores"
+sh "$root/scripts/stitch-ores.sh" "$tmp/combined.ores" "$tmp/first.ores" "$tmp/second.ores"
 grep -q '^end$' "$tmp/combined.ores"
 grep -q '^pub routine main()' "$tmp/combined.ores"
 
