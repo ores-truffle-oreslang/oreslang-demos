@@ -1,0 +1,28 @@
+name: Demo metadata and source gate
+on:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+      - name: Parse integration and AI fixture manifests
+        run: |
+          python3 -m json.tool .oreslang/integration.json > /dev/null
+          python3 -m json.tool ai/examples.manifest.json > /dev/null
+      - name: Execute stitcher negative and round-trip tests
+        run: sh scripts/test-stitch.sh
+      - name: Ensure authored Oreslang is neither symlink nor empty
+        shell: bash
+        run: |
+          set -euo pipefail
+          while IFS= read -r -d '' file; do
+            test ! -L "$file"
+            test -s "$file"
+          done < <(find cli desktop-app web-server interop -name '*.ores' -print0)
