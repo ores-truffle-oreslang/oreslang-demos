@@ -1,0 +1,75 @@
+name: Exact compiler demo matrix
+on:
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      expected_demo_sha:
+        description: 'Reviewed exact main commit SHA (40 lowercase hex)'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  structural-only:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - name: Verify demo head and shell syntax (NOT guest execution)
+        shell: bash
+        env:
+          EXPECTED_DEMO_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_DEMO_SHA"
+          bash -n scripts/run-exact-compiler-matrix.sh
+          grep -Eq '^[0-9a-f]{40}$' SOURCE_REF
+          test "$(wc -c < SOURCE_REF)" -eq 41
+          echo 'STRUCTURAL_ONLY NOT_EXECUTED: no Oreslang compiler or guest was invoked'
+
+  exact-compiler:
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
+    runs-on: [self-hosted, linux, x64, oreslang-jdk25]
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          ref: ${{ inputs.expected_demo_sha }}
+          persist-credentials: false
+      - name: Verify exact demo checkout
+        shell: bash
+        env:
+          EXPECTED_DEMO_SHA: ${{ inputs.expected_demo_sha }}
+        run: |
+          set -euo pipefail
+          [[ "$EXPECTED_DEMO_SHA" =~ ^[0-9a-f]{40}$ ]]
+          test "$EXPECTED_DEMO_SHA" = "$GITHUB_SHA"
+          test "$(git rev-parse HEAD)" = "$EXPECTED_DEMO_SHA"
+          echo "demo_head=$EXPECTED_DEMO_SHA"
+      - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
+        with:
+          distribution: temurin
+          java-version: '25'
+      - name: Require exact clean compiler checkout
+        shell: bash
+        run: |
+          set -euo pipefail
+          : "${ORESLANG_SOURCE_DIR:?Trusted runner must provide ORESLANG_SOURCE_DIR}"
+          expected="$(tr -d '[:space:]' < SOURCE_REF)"
+          [[ "$expected" =~ ^[0-9a-f]{40}$ ]]
+          test "$(git -C "$ORESLANG_SOURCE_DIR" rev-parse HEAD)" = "$expected"
+          test -z "$(git -C "$ORESLANG_SOURCE_DIR" status --porcelain --untracked-files=all)"
+      - name: Check exact matrix syntax
+        run: bash -n scripts/run-exact-compiler-matrix.sh
+      - name: Execute authored demo boundaries
+        run: bash scripts/run-exact-compiler-matrix.sh
