@@ -1,0 +1,58 @@
+name: AI inventory consistency
+on:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  inventory:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Validate historical example inventory
+        run: |
+          python3 - <<'PY'
+          import json, re
+          from pathlib import Path
+
+          p = Path("ai/examples.manifest.json")
+          if p.is_symlink() or not p.is_file():
+              raise SystemExit("AI manifest must be a regular file")
+          data = json.loads(p.read_text())
+          if data.get("schema_version") != 1:
+              raise SystemExit("unsupported AI manifest schema")
+          gen = data.get("generated_from", {})
+          if gen.get("repository") != "ores-truffle-oreslang/oreslang-demos":
+              raise SystemExit("wrong generated_from repository")
+          source_commit = gen.get("source_commit", "")
+          if not re.fullmatch(r"[0-9a-f]{40}", source_commit):
+              raise SystemExit("generated_from source_commit must be a full Git SHA")
+          examples = data.get("examples")
+          if not isinstance(examples, list) or not examples:
+              raise SystemExit("examples inventory is empty")
+          ids, paths = set(), set()
+          for row in examples:
+              ident, path = row.get("id"), row.get("path")
+              if not ident or ident in ids:
+                  raise SystemExit(f"missing/duplicate id: {ident!r}")
+              if not path or path in paths or path.startswith("/") or ".." in Path(path).parts:
+                  raise SystemExit(f"unsafe/duplicate path: {path!r}")
+              ids.add(ident); paths.add(path)
+              src = row.get("source", {})
+              if src.get("repository") != gen["repository"] or src.get("commit") != source_commit:
+                  raise SystemExit(f"source provenance mismatch for {ident}")
+              if not re.fullmatch(r"[0-9a-f]{40}", src.get("blob_sha", "")):
+                  raise SystemExit(f"invalid blob SHA for {ident}")
+              ver = row.get("verification", {})
+              if ver.get("status") != "not-run":
+                  raise SystemExit(f"historical inventory cannot silently claim execution: {ident}")
+              for key in ("backend", "compiler_commit", "command", "evidence"):
+                  if ver.get(key) is not None:
+                      raise SystemExit(f"{ident}: {key} must remain null while not-run")
+          print(f"AI_INVENTORY_PASS examples={len(examples)}")
+          print("Compiler acceptance remains NOT_EXECUTED.")
+          PY
