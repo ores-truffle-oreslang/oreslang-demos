@@ -11,11 +11,17 @@ jobs:
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
-      - name: Parse integration and AI fixture manifests
+      - name: Verify exact source and parse JSON fixtures (host-only)
+        shell: bash
+        env:
+          EXPECTED_DEMO_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         run: |
-          python3 -m json.tool .oreslang/integration.json > /dev/null
-          python3 -m json.tool ai/examples.manifest.json > /dev/null
+          set -euo pipefail
+          [[ "$EXPECTED_DEMO_SHA" =~ ^[0-9a-f]{40}$ ]]
+          test "$(git rev-parse HEAD)" = "$EXPECTED_DEMO_SHA"
+          node -e 'const fs=require("node:fs"); for (const p of process.argv.slice(1)) JSON.parse(fs.readFileSync(p,"utf8"));' .oreslang/integration.json ai/examples.manifest.json
       - name: Execute stitcher negative and round-trip tests
         run: sh scripts/test-stitch.sh
       - name: Ensure authored Oreslang is neither symlink nor empty
