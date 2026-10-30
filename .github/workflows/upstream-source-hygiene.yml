@@ -1,0 +1,54 @@
+# Structural-only gate; a passing run never proves an Oreslang guest compiled/executed.
+name: Upstream source hygiene (structural only)
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  structural-only:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Verify source-tip audit and optional SHA pin
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s docs/UPSTREAM_SOURCE_TIPS_2026-10-29.md
+          if [[ -f SOURCE_REF ]]; then
+            grep -Eq '^[0-9a-f]{40}$' SOURCE_REF
+            test "$(wc -l < SOURCE_REF)" -eq 1
+          fi
+      - name: Reject Python tooling
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -d '' -t python_files < <(git ls-files -z -- '*.py' '*.pyi' '*.ipynb')
+          if (( ${#python_files[@]} )); then
+            printf 'POLICY_FAILURE: port Python files to Rust:\n' >&2
+            printf '  %s\n' "${python_files[@]}" >&2
+            exit 1
+          fi
+      - name: Report structural-only classification
+        shell: bash
+        run: |
+          set -euo pipefail
+          n="$(git ls-files -- '*.ores' | wc -l | tr -d ' ')"
+          printf 'STRUCTURAL_ONLY tracked_ores_sources=%s\n' "$n"
+          printf 'NOT_EXECUTED: no genuine compiler or .ores guest was invoked\n'
+
+      - name: Run hermetic negative regression tests
+        shell: bash
+        run: bash ci/test-source-policy.sh
+      - name: Enforce exact Git-index source policy
+        shell: bash
+        env:
+          EXPECTED_DEMO_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          SOURCE_POLICY_MODE: strict
+        run: bash ci/source-policy.sh
