@@ -33,6 +33,14 @@ if "$root/scripts/stitch-ores.sh" "$tmp/self.ores" "$tmp/self.ores" >/dev/null 2
   exit 1
 fi
 grep -q '^define module first as
+
+dd if=/dev/zero of="$tmp/too-large.ores" bs=1048577 count=1 2>/dev/null
+if "$root/scripts/stitch-ores.sh" "$tmp/rejected-large.ores" "$tmp/too-large.ores" >/dev/null 2>&1; then
+  echo "oversized source was accepted" >&2
+  exit 1
+fi
+
+echo "stitcher self-test passed"
  "$tmp/self.ores"
 
 dd if=/dev/zero of="$tmp/too-large.ores" bs=1048577 count=1 2>/dev/null
