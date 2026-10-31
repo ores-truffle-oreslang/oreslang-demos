@@ -10,6 +10,8 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.Locale;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
@@ -19,6 +21,8 @@ import java.util.concurrent.TimeUnit;
 public final class DesktopHost {
     private static final int GUEST_TIMEOUT_SECONDS = 10;
     private static final int MAX_GUEST_OUTPUT_BYTES = 1024 * 1024;
+    private static final int MAX_TRACKED_DESCENDANTS = 256;
+    private static final long DESCENDANT_SCAN_NANOS = TimeUnit.MILLISECONDS.toNanos(25);
     private static final int MIN_WIDTH = 200;
     private static final int MAX_WIDTH = 4096;
     private static final int MIN_HEIGHT = 120;
@@ -110,16 +114,17 @@ public final class DesktopHost {
         var io = Executors.newVirtualThreadPerTaskExecutor();
         Future<String> stdout = null;
         Future<String> stderr = null;
+        // Record process identities while the direct compiler is alive.
+        // Once the parent exits, ProcessHandle.descendants() cannot find
+        // already-reparented children that still retain inherited pipes.
+        Map<Long, ProcessHandle> observedDescendants = new LinkedHashMap<>();
         try {
             stdout = io.submit(
                     () -> readUtf8Bounded(process.getInputStream(), MAX_GUEST_OUTPUT_BYTES));
             stderr = io.submit(
                     () -> readUtf8Bounded(process.getErrorStream(), MAX_GUEST_OUTPUT_BYTES));
 
-            long remaining = deadlineNanos - System.nanoTime();
-            if (remaining <= 0 || !process.waitFor(remaining, TimeUnit.NANOSECONDS)) {
-                throw new IllegalStateException("Oreslang guest exceeded the demo timeout");
-            }
+            waitForGuest(process, deadlineNanos, observedDescendants);
 
             return new GuestOutput(
                     process.exitValue(),
@@ -131,7 +136,49 @@ public final class DesktopHost {
             if (stderr != null) stderr.cancel(true);
             // Never join a task that may be stuck reading an inherited pipe.
             io.shutdownNow();
+            // Terminate tracked children before their parent. Killing only
+            // the compiler leaves orphaned pipe writers and long-lived work.
+            terminateDescendants(observedDescendants);
             if (process.isAlive()) process.destroyForcibly();
+        }
+    }
+
+    private static void observeDescendants(Process process,
+                                           Map<Long, ProcessHandle> observed) {
+        try (var children = process.toHandle().descendants()) {
+            children.forEach(child -> {
+                observed.putIfAbsent(child.pid(), child);
+                if (observed.size() > MAX_TRACKED_DESCENDANTS) {
+                    throw new IllegalStateException("guest descendant process budget exceeded");
+                }
+            });
+        }
+    }
+
+    private static void waitForGuest(Process process, long deadlineNanos,
+                                     Map<Long, ProcessHandle> observed)
+            throws InterruptedException {
+        for (;;) {
+            // Poll at bounded intervals while the root is still alive.
+            // This captures children that can later outlive their parent.
+            observeDescendants(process, observed);
+            long remaining = deadlineNanos - System.nanoTime();
+            if (remaining <= 0) {
+                throw new IllegalStateException("Oreslang guest exceeded the demo timeout");
+            }
+            if (process.waitFor(Math.min(remaining, DESCENDANT_SCAN_NANOS),
+                                TimeUnit.NANOSECONDS)) {
+                return;
+            }
+        }
+    }
+
+    private static void terminateDescendants(Map<Long, ProcessHandle> observed) {
+        // Best-effort in-process child cleanup, not an OS-enforced sandbox.
+        // Process groups/job objects are still required to capture children
+        // that fork and exit entirely between 25ms observations.
+        for (ProcessHandle child : observed.values()) {
+            if (child.isAlive()) child.destroyForcibly();
         }
     }
 
