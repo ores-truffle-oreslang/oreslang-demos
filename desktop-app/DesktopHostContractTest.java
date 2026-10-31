@@ -1,8 +1,11 @@
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Locale;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.FutureTask;
 
 /** Host-process integration checks. Does not invoke or certify an Oreslang compiler. */
 public final class DesktopHostContractTest {
@@ -48,23 +51,39 @@ public final class DesktopHostContractTest {
                 if (ok.isAlive()) ok.destroyForcibly();
             }
 
-            // Compiler exits immediately, but its descendant holds the output
-            // pipe open longer than the host's 10-second TOTAL deadline.
+            // A real guest that never exits must honor the same wall deadline.
             Files.writeString(compiler, "#!/bin/sh\n"
-                    + "sleep 16 &\n"
-                    + "printf 'Demo title\\n640\\n360\\nDemo body\\n'\n");
+                    + "sleep 16\n");
             long started = System.nanoTime();
             Process stuck = startHost(source, compiler);
             try {
                 boolean exited = stuck.waitFor(13, TimeUnit.SECONDS);
                 long elapsedMs = TimeUnit.NANOSECONDS.toMillis(
                         System.nanoTime() - started);
-                require(exited, "inherited compiler pipe held host indefinitely");
-                require(stuck.exitValue() != 0, "incomplete pipe accepted as valid");
-                require(elapsedMs < 13_000L, "capture deadline exceeded");
+                require(exited, "hung compiler held host indefinitely");
+                require(stuck.exitValue() != 0, "hung compiler accepted as valid");
+                require(elapsedMs < 13_000L, "process deadline exceeded");
             } finally {
                 if (stuck.isAlive()) stuck.destroyForcibly();
             }
+
+            // An inherited/open pipe can keep a capture Future incomplete
+            // even AFTER process.waitFor returns. Exercise the actual
+            // capture-deadline method with a never-completing Future.
+            Method capture = DesktopHost.class.getDeclaredMethod(
+                    "getCaptured", java.util.concurrent.Future.class,
+                    String.class, long.class);
+            capture.setAccessible(true);
+            FutureTask<String> blocked = new FutureTask<>(() -> "unreachable");
+            boolean timedOut = false;
+            try {
+                capture.invoke(null, blocked, "stdout",
+                        System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(50));
+            } catch (InvocationTargetException error) {
+                timedOut = error.getCause() instanceof IllegalStateException
+                        && error.getCause().getMessage().contains("deadline");
+            }
+            require(timedOut, "never-completing capture Future was accepted");
             System.out.println("DESKTOP_HOST_GUEST_DEADLINE_PASS (fake compiler only)");
         } finally {
             Files.deleteIfExists(compiler);
