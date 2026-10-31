@@ -34,8 +34,10 @@ jobs:
         with:
           distribution: temurin
           java-version: "21"
-      - name: Compile desktop host with warnings
-        run: javac -Xlint:all desktop-app/DesktopHost.java
+      - name: Compile and adversarially test desktop host with warnings
+        run: |
+          javac -Xlint:all desktop-app/DesktopHost.java desktop-app/DesktopHostContractTest.java
+          java -cp desktop-app DesktopHostContractTest
       - name: Compile and test web host with warnings
         run: |
           javac -Xlint:all web-server/HttpHost.java web-server/HttpHostContractTest.java
