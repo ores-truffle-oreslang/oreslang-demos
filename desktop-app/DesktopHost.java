@@ -101,26 +101,37 @@ public final class DesktopHost {
                 source.toString()
         ).start();
 
-        try (var io = Executors.newVirtualThreadPerTaskExecutor()) {
-            Future<String> stdout = io.submit(
+        // The deadline covers BOTH process exit and pipe capture. A compiler
+        // can exit while one of its children still holds stdout/stderr open.
+        // AutoCloseable ExecutorService.close() waits for those blocked reads
+        // indefinitely, so never use try-with-resources here.
+        long deadlineNanos = System.nanoTime()
+                + TimeUnit.SECONDS.toNanos(GUEST_TIMEOUT_SECONDS);
+        var io = Executors.newVirtualThreadPerTaskExecutor();
+        Future<String> stdout = null;
+        Future<String> stderr = null;
+        try {
+            stdout = io.submit(
                     () -> readUtf8Bounded(process.getInputStream(), MAX_GUEST_OUTPUT_BYTES));
-            Future<String> stderr = io.submit(
+            stderr = io.submit(
                     () -> readUtf8Bounded(process.getErrorStream(), MAX_GUEST_OUTPUT_BYTES));
 
-            if (!process.waitFor(GUEST_TIMEOUT_SECONDS, TimeUnit.SECONDS)) {
-                process.destroy();
-                if (!process.waitFor(1, TimeUnit.SECONDS)) {
-                    process.destroyForcibly();
-                    process.waitFor(2, TimeUnit.SECONDS);
-                }
+            long remaining = deadlineNanos - System.nanoTime();
+            if (remaining <= 0 || !process.waitFor(remaining, TimeUnit.NANOSECONDS)) {
                 throw new IllegalStateException("Oreslang guest exceeded the demo timeout");
             }
 
             return new GuestOutput(
                     process.exitValue(),
-                    getCaptured(stdout, "stdout"),
-                    getCaptured(stderr, "stderr")
+                    getCaptured(stdout, "stdout", deadlineNanos),
+                    getCaptured(stderr, "stderr", deadlineNanos)
             );
+        } finally {
+            if (stdout != null) stdout.cancel(true);
+            if (stderr != null) stderr.cancel(true);
+            // Never join a task that may be stuck reading an inherited pipe.
+            io.shutdownNow();
+            if (process.isAlive()) process.destroyForcibly();
         }
     }
 
@@ -137,17 +148,24 @@ public final class DesktopHost {
                 int keep = (int) Math.min(read, maxBytes - before);
                 kept.write(buffer, 0, keep);
             }
-        }
-
-        if (total > maxBytes) {
-            throw new IOException("guest output exceeded " + maxBytes + " bytes");
+            if (total > maxBytes) {
+                throw new IOException("guest output exceeded " + maxBytes + " bytes");
+            }
         }
         return kept.toString(StandardCharsets.UTF_8);
     }
 
-    private static String getCaptured(Future<String> future, String streamName) throws Exception {
+    private static String getCaptured(Future<String> future, String streamName,
+                                      long deadlineNanos) throws Exception {
+        long remaining = deadlineNanos - System.nanoTime();
+        if (remaining <= 0) {
+            throw new IllegalStateException("guest " + streamName + " capture exceeded deadline");
+        }
         try {
-            return future.get();
+            return future.get(remaining, TimeUnit.NANOSECONDS);
+        } catch (java.util.concurrent.TimeoutException error) {
+            throw new IllegalStateException(
+                    "guest " + streamName + " capture exceeded deadline", error);
         } catch (ExecutionException error) {
             Throwable cause = error.getCause();
             throw new IOException("failed to capture guest " + streamName, cause);
