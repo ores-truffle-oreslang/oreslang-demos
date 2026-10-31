@@ -34,6 +34,7 @@ public final class DesktopHostContractTest {
         Path dir = Files.createTempDirectory("ores-desktop-host-contract-");
         Path source = dir.resolve("demo.ores");
         Path compiler = dir.resolve("fake-compiler.sh");
+        Path childPidFile = Path.of(compiler + ".child-pid");
         try {
             Files.writeString(source, "not a real Oreslang program\n");
             Files.writeString(compiler, "#!/bin/sh\n"
@@ -51,9 +52,13 @@ public final class DesktopHostContractTest {
                 if (ok.isAlive()) ok.destroyForcibly();
             }
 
-            // A real guest that never exits must honor the same wall deadline.
+            // An untrusted compiler can spawn a descendant that keeps the
+            // inherited stdout/stderr pipes open. The host must terminate
+            // observed descendants as well as its direct compiler process.
             Files.writeString(compiler, "#!/bin/sh\n"
-                    + "sleep 16\n");
+                    + "sleep 30 &\n"
+                    + "printf '%s\\n' \"$!\" > \"$0.child-pid\"\n"
+                    + "wait\n");
             long started = System.nanoTime();
             Process stuck = startHost(source, compiler);
             try {
@@ -63,6 +68,17 @@ public final class DesktopHostContractTest {
                 require(exited, "hung compiler held host indefinitely");
                 require(stuck.exitValue() != 0, "hung compiler accepted as valid");
                 require(elapsedMs < 13_000L, "process deadline exceeded");
+                require(Files.isRegularFile(childPidFile),
+                        "fake compiler failed to record descendant PID");
+                long childPid = Long.parseLong(Files.readString(childPidFile).trim());
+                long reapDeadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(2);
+                while (ProcessHandle.of(childPid).map(ProcessHandle::isAlive)
+                        .orElse(false) && System.nanoTime() < reapDeadline) {
+                    Thread.sleep(25);
+                }
+                require(!ProcessHandle.of(childPid).map(ProcessHandle::isAlive)
+                                .orElse(false),
+                        "compiler descendant survived host deadline");
             } finally {
                 if (stuck.isAlive()) stuck.destroyForcibly();
             }
@@ -84,8 +100,9 @@ public final class DesktopHostContractTest {
                         && error.getCause().getMessage().contains("deadline");
             }
             require(timedOut, "never-completing capture Future was accepted");
-            System.out.println("DESKTOP_HOST_GUEST_DEADLINE_PASS (fake compiler only)");
+            System.out.println("DESKTOP_HOST_GUEST_DEADLINE_AND_DESCENDANT_CLEANUP_PASS (fake compiler only)");
         } finally {
+            Files.deleteIfExists(childPidFile);
             Files.deleteIfExists(compiler);
             Files.deleteIfExists(source);
             Files.deleteIfExists(dir);
