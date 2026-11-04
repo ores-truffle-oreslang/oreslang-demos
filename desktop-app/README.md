@@ -23,6 +23,6 @@ For headless CI, the host exposes a validation-only mode:
 java DesktopHost.java --manifest-only /path/to/stitched-app.ores
 ```
 
-The host bounds guest runtime/output, drains stdout and stderr concurrently, and validates title and window dimensions before creating a native window.
+The host applies one monotonic **10-second end-to-end deadline** to compiler exit and both stdout/stderr captures (including compiler descendants that retain inherited pipe handles). It limits each stream to 1 MiB, fails immediately on an overflow, and avoids an unbounded executor join on teardown. Run `javac -Xlint:all desktop-app/DesktopHost.java desktop-app/DesktopHostContractTest.java && java -cp desktop-app DesktopHostContractTest` from the repository root to execute the clean-manifest and inherited-pipe adversarial acceptance tests. This host runs developer-selected compiler executables; it does **not** provide an OS sandbox or safely terminate detached descendants of arbitrary untrusted executables.
 
 Set `ORESLANG_COMPILER` if `oreslang-compiler` is not on `PATH`.
