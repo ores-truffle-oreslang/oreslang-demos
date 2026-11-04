@@ -3,6 +3,9 @@ pub routine main() => void {
   const right = 23;
   val answer = demo_math.add(left, right);
 
+  // Native CLI library checks: preserve signed add and fixed banner contract.
+  if demo_math.add(-3, 3) != 0 then panic("signed addition regression"); fi
+  if demo_messages.equation() != "19 + 23 =" then panic("CLI equation banner drift"); fi
   stdio.println(demo_messages.title());
   stdio.println(demo_messages.equation());
   stdio.println(answer);
