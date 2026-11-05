@@ -57,4 +57,32 @@ if "$root/scripts/stitch-ores.sh" "$tmp/rejected-large.ores" "$tmp/too-large.ore
   exit 1
 fi
 
+
+# Untrusted invocations must fail without changing a previously published file.
+printf 'known-good publication\n' > "$tmp/prior.ores"
+if sh "$root/scripts/stitch-ores.sh" "$tmp/prior.ores" "$tmp/absent.ores" >/dev/null 2>&1; then
+  echo "nonexistent source was accepted" >&2
+  exit 1
+fi
+grep -qx 'known-good publication' "$tmp/prior.ores"
+
+if sh "$root/scripts/stitch-ores.sh" "$tmp/missing-dir/output.ores" "$tmp/first.ores" >/dev/null 2>&1; then
+  echo "nonexistent publication directory was accepted" >&2
+  exit 1
+fi
+test ! -e "$tmp/missing-dir/output.ores"
+
+# The option-like destination is passed literally, not as an output pathname.
+if (cd "$tmp" && sh "$root/scripts/stitch-ores.sh" "-unsafe.ores" "first.ores") >/dev/null 2>&1; then
+  echo "option-like output path was accepted" >&2
+  exit 1
+fi
+test ! -e "$tmp/-unsafe.ores"
+
+if sh "$root/scripts/stitch-ores.sh" "$tmp/prior.ores" "$tmp" >/dev/null 2>&1; then
+  echo "directory source was accepted" >&2
+  exit 1
+fi
+grep -qx 'known-good publication' "$tmp/prior.ores"
+
 echo "stitcher self-test passed"
