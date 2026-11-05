@@ -33,7 +33,7 @@ public final class HttpHostContractTest {
                 "/bad\rheader",
                 "/bad\nheader",
                 "/bad\tpath",
-                "/bad\u0000path"
+                "/bad" + ((char) 0) + "path"
         }) {
             reject(malformed, null);
         }
