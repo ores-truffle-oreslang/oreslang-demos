@@ -243,4 +243,23 @@ if [ "$(cat "$tmp/wave501-hardlink-source.ores")" != 'original-hardlink-source' 
   exit 1
 fi
 
+# Named pipes must be refused as nonregular sources before any attempt to
+# read their contents (which would block without a writer). The failed write
+# must preserve an already published file and clean temporary artifacts.
+mkfifo "$tmp/wave610-named-pipe.ores"
+printf 'preexisting-pipe-publication\n' > "$tmp/wave610-pipe-output.ores"
+pipe_status=0
+timeout 5 sh "$root/scripts/stitch-ores.sh" \
+  "$tmp/wave610-pipe-output.ores" "$tmp/wave610-named-pipe.ores" \
+  >/dev/null 2>&1 || pipe_status=$?
+if [ "$pipe_status" -ne 65 ]; then
+  echo "nonregular named-pipe source did not reject promptly (status=$pipe_status)" >&2
+  exit 1
+fi
+grep -qx 'preexisting-pipe-publication' "$tmp/wave610-pipe-output.ores"
+if [ -n "$(find "$tmp" -maxdepth 1 -name '.ores-stitch.*' -print)" ]; then
+  echo "named-pipe refusal left behind a temporary publication" >&2
+  exit 1
+fi
+
 echo "stitcher self-test passed"
