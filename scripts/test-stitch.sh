@@ -126,4 +126,18 @@ if [ -n "$(find "$tmp" -maxdepth 1 -name '.ores-stitch.*' -print)" ]; then
   exit 1
 fi
 
+# Quoted source and destination paths must remain one argument each; preserve
+# input order and insert exactly one newline after every original input.
+mkdir -p "$tmp/quoted source paths"
+printf 'alpha-raw' > "$tmp/quoted source paths/first input.ores"
+printf 'beta-raw\n' > "$tmp/quoted source paths/second input.ores"
+sh "$root/scripts/stitch-ores.sh" "$tmp/quoted output name.ores" \
+  "$tmp/quoted source paths/first input.ores" \
+  "$tmp/quoted source paths/second input.ores"
+printf 'alpha-raw\nbeta-raw\n\n' > "$tmp/quoted expected.ores"
+if ! cmp -s "$tmp/quoted expected.ores" "$tmp/quoted output name.ores"; then
+  echo "quoted source paths or input order were not preserved" >&2
+  exit 1
+fi
+
 echo "stitcher self-test passed"
