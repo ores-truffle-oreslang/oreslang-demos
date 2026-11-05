@@ -152,4 +152,18 @@ if ! cmp -s "$tmp/repeat-expected.ores" "$tmp/repeat-output.ores"; then
   exit 1
 fi
 
+# Quoted source and destination paths containing spaces and shell glob tokens
+# are literal files, not wildcard expansions or split positional arguments.
+mkdir -p "$tmp/path [literal] with spaces"
+printf 'literal-path-source\n' > "$tmp/path [literal] with spaces/input [a].ores"
+sh "$root/scripts/stitch-ores.sh" \
+  "$tmp/path [literal] with spaces/output [b].ores" \
+  "$tmp/path [literal] with spaces/input [a].ores"
+printf 'literal-path-source\n\n' > "$tmp/expected-literal.ores"
+if ! cmp -s "$tmp/expected-literal.ores" \
+    "$tmp/path [literal] with spaces/output [b].ores"; then
+  echo "quoted literal paths were split or expanded" >&2
+  exit 1
+fi
+
 echo "stitcher self-test passed"
