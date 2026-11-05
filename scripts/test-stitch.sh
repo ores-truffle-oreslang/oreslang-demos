@@ -198,4 +198,14 @@ if [ -n "$(find "$tmp" -maxdepth 1 -name '.ores-stitch.*' -print)" ]; then
   exit 1
 fi
 
+# The inclusive one-MiB per-file admission boundary remains valid and
+# contributes one extra newline to the published byte stream.
+sh "$root/scripts/stitch-ores.sh" "$tmp/exact-one-file.ores" "$tmp/one-mib.ores"
+cp "$tmp/one-mib.ores" "$tmp/exact-one-file-expected.ores"
+printf '\n' >> "$tmp/exact-one-file-expected.ores"
+if ! cmp -s "$tmp/exact-one-file-expected.ores" "$tmp/exact-one-file.ores"; then
+  echo "exact 1 MiB per-file source boundary was changed or rejected" >&2
+  exit 1
+fi
+
 echo "stitcher self-test passed"
