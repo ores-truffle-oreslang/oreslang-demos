@@ -17,6 +17,27 @@ public final class HttpHostContractTest {
         reject("/a\\b", null);
         reject("/snowman-☃", null);
 
+        // Path caps are inclusive. Never truncate or normalize a hostile URL
+        // into a different route before admitting the exact raw target.
+        accept("/" + "a".repeat(2047));
+        reject("/" + "a".repeat(2048), null);
+
+        // Query presence is forbidden even for a zero-length query.
+        reject("/health", "");
+        reject(null, null);
+        for (String malformed : new String[] {
+                "/health?debug=1",
+                "/health#fragment",
+                "/a%2fb",
+                "/a%2Eb",
+                "/bad\rheader",
+                "/bad\nheader",
+                "/bad\tpath",
+                "/bad" + ((char) 0) + "path"
+        }) {
+            reject(malformed, null);
+        }
+
         System.out.println("HTTP host target contract tests passed");
     }
 
