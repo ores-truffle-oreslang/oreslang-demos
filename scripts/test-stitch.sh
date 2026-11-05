@@ -85,4 +85,19 @@ if sh "$root/scripts/stitch-ores.sh" "$tmp/prior.ores" "$tmp" >/dev/null 2>&1; t
 fi
 grep -qx 'known-good publication' "$tmp/prior.ores"
 
+# The total 4 MiB bound must fail atomically even when each individual
+# input is within the independent 1 MiB per-source admission limit.
+dd if=/dev/zero of="$tmp/one-mib.ores" bs=1048576 count=1 2>/dev/null
+for n in 1 2 3 4 5; do
+  cp "$tmp/one-mib.ores" "$tmp/chunk-$n.ores"
+done
+printf 'retain previously published source\n' > "$tmp/atomic-total.ores"
+if sh "$root/scripts/stitch-ores.sh" "$tmp/atomic-total.ores" \
+  "$tmp/chunk-1.ores" "$tmp/chunk-2.ores" "$tmp/chunk-3.ores" \
+  "$tmp/chunk-4.ores" "$tmp/chunk-5.ores" >/dev/null 2>&1; then
+  echo "aggregate source byte limit was accepted" >&2
+  exit 1
+fi
+grep -qx 'retain previously published source' "$tmp/atomic-total.ores"
+
 echo "stitcher self-test passed"
