@@ -166,4 +166,20 @@ if ! cmp -s "$tmp/expected-literal.ores" \
   exit 1
 fi
 
+# Atomic publication must not inherit unsafe permissions from an old target.
+# This also verifies a positive update replaces the previous file contents.
+printf 'old-publication\n' > "$tmp/permissions.ores"
+chmod 666 "$tmp/permissions.ores"
+printf 'new-private-publication\n' > "$tmp/permissions-source.ores"
+sh "$root/scripts/stitch-ores.sh" "$tmp/permissions.ores" "$tmp/permissions-source.ores"
+printf 'new-private-publication\n\n' > "$tmp/permissions-expected.ores"
+if ! cmp -s "$tmp/permissions-expected.ores" "$tmp/permissions.ores"; then
+  echo "published source content was not atomically replaced" >&2
+  exit 1
+fi
+if [ "$(find "$tmp/permissions.ores" -perm 0600 -print)" != "$tmp/permissions.ores" ]; then
+  echo "published source had unsafe permissions" >&2
+  exit 1
+fi
+
 echo "stitcher self-test passed"
