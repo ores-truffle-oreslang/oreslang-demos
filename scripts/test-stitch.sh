@@ -114,8 +114,8 @@ fi
 
 # A later invalid source must not partially publish the bytes of an earlier
 # source or leave a temporary artifact beside a previously valid output.
-printf 'previously published bytes\\n' > "$tmp/later-source-atomic.ores"
-if sh "$root/scripts/stitch-ores.sh" "$tmp/later-source-atomic.ores" \\
+printf 'previously published bytes\n' > "$tmp/later-source-atomic.ores"
+if sh "$root/scripts/stitch-ores.sh" "$tmp/later-source-atomic.ores" \
     "$tmp/first.ores" "$tmp/absent-after-first.ores" >/dev/null 2>&1; then
   echo "invalid later source was accepted" >&2
   exit 1
