@@ -24,6 +24,10 @@ if [ ! -d "$output_dir" ]; then
   echo "stitch output directory does not exist: $output_dir" >&2
   exit 65
 fi
+# Keep the output inode identity stable across syntactic ./ aliases and
+# symlinked parent directories before any temporary output is published.
+output_canonical_dir="$(cd "$output_dir" && pwd -P)" || exit 65
+output_canonical="$output_canonical_dir/$(basename "$output")"
 
 umask 077
 tmp_output="$(mktemp "$output_dir/.ores-stitch.XXXXXX")" || exit 70
@@ -36,6 +40,11 @@ for source in "$@"; do
   fi
   if [ -L "$source" ] || [ ! -f "$source" ]; then
     echo "refusing non-regular or symlinked Oreslang source: $source" >&2
+    exit 65
+  fi
+  source_canonical_dir="$(cd "$(dirname "$source")" && pwd -P)" || exit 65
+  if [ "$source_canonical_dir/$(basename "$source")" = "$output_canonical" ]; then
+    echo "refusing input/output alias by canonical path: $source" >&2
     exit 65
   fi
   size="$(wc -c < "$source" | tr -d '[:space:]')"
