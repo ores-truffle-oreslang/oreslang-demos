@@ -100,4 +100,15 @@ if sh "$root/scripts/stitch-ores.sh" "$tmp/atomic-total.ores" \
 fi
 grep -qx 'retain previously published source' "$tmp/atomic-total.ores"
 
+# The exact inclusive 4 MiB aggregate input boundary remains admissible.
+# Four inserted newlines expand the published output without charging source bytes.
+sh "$root/scripts/stitch-ores.sh" "$tmp/exact-total.ores" \
+  "$tmp/chunk-1.ores" "$tmp/chunk-2.ores" \
+  "$tmp/chunk-3.ores" "$tmp/chunk-4.ores"
+actual_size="$(wc -c < "$tmp/exact-total.ores" | tr -d '[:space:]')"
+if [ "$actual_size" -ne 4194308 ]; then
+  echo "exact 4 MiB source input boundary was corrupted: $actual_size" >&2
+  exit 1
+fi
+
 echo "stitcher self-test passed"
