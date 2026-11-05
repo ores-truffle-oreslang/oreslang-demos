@@ -32,7 +32,51 @@ if "$root/scripts/stitch-ores.sh" "$tmp/self.ores" "$tmp/self.ores" >/dev/null 2
   echo "input/output self-overwrite was accepted" >&2
   exit 1
 fi
-grep -q '^define module first as$' "$tmp/self.ores"
+grep -q '^define module first as
+
+dd if=/dev/zero of="$tmp/too-large.ores" bs=1048577 count=1 2>/dev/null
+if "$root/scripts/stitch-ores.sh" "$tmp/rejected-large.ores" "$tmp/too-large.ores" >/dev/null 2>&1; then
+  echo "oversized source was accepted" >&2
+  exit 1
+fi
+
+echo "stitcher self-test passed"
+ "$tmp/self.ores"
+
+# Same inode under a dot-component spelling is still a forbidden self-write.
+if sh "$root/scripts/stitch-ores.sh" "$tmp/./self.ores" "$tmp/self.ores" >/dev/null 2>&1; then
+  echo "dot-path input/output identity alias accepted" >&2
+  exit 1
+fi
+grep -q '^define module first as
+
+dd if=/dev/zero of="$tmp/too-large.ores" bs=1048577 count=1 2>/dev/null
+if "$root/scripts/stitch-ores.sh" "$tmp/rejected-large.ores" "$tmp/too-large.ores" >/dev/null 2>&1; then
+  echo "oversized source was accepted" >&2
+  exit 1
+fi
+
+echo "stitcher self-test passed"
+ "$tmp/self.ores"
+
+# A symlink in a parent directory must not evade the source/output fence.
+mkdir -p "$tmp/real-parent"
+printf 'define module original as\nend\n' > "$tmp/real-parent/src.ores"
+ln -s "$tmp/real-parent" "$tmp/parent-alias"
+if sh "$root/scripts/stitch-ores.sh" "$tmp/parent-alias/src.ores" "$tmp/real-parent/src.ores" >/dev/null 2>&1; then
+  echo "symlinked parent input/output alias accepted" >&2
+  exit 1
+fi
+grep -q '^define module original as
+
+dd if=/dev/zero of="$tmp/too-large.ores" bs=1048577 count=1 2>/dev/null
+if "$root/scripts/stitch-ores.sh" "$tmp/rejected-large.ores" "$tmp/too-large.ores" >/dev/null 2>&1; then
+  echo "oversized source was accepted" >&2
+  exit 1
+fi
+
+echo "stitcher self-test passed"
+ "$tmp/real-parent/src.ores"
 
 dd if=/dev/zero of="$tmp/too-large.ores" bs=1048577 count=1 2>/dev/null
 if "$root/scripts/stitch-ores.sh" "$tmp/rejected-large.ores" "$tmp/too-large.ores" >/dev/null 2>&1; then
