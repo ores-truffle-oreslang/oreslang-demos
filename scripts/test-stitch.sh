@@ -140,4 +140,16 @@ if ! cmp -s "$tmp/quoted expected.ores" "$tmp/quoted output name.ores"; then
   exit 1
 fi
 
+# A repeated input is a separate source contribution; zero bytes insert one
+# newline separator without changing the order of requested source paths.
+printf 'A' > "$tmp/repeat-source.ores"
+: > "$tmp/empty-source.ores"
+sh "$root/scripts/stitch-ores.sh" "$tmp/repeat-output.ores" \
+  "$tmp/repeat-source.ores" "$tmp/empty-source.ores" "$tmp/repeat-source.ores"
+printf 'A\n\nA\n' > "$tmp/repeat-expected.ores"
+if ! cmp -s "$tmp/repeat-expected.ores" "$tmp/repeat-output.ores"; then
+  echo "repeated or empty source input changed ordered stitch bytes" >&2
+  exit 1
+fi
+
 echo "stitcher self-test passed"
