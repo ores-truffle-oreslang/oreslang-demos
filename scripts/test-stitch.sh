@@ -228,4 +228,19 @@ if [ "$(find "$tmp/hardlink-output.ores" -perm 0600 -print)" != "$tmp/hardlink-o
   exit 1
 fi
 
+# When the intended output is a hardlink to a source, atomic rename must
+# detach the output inode rather than mutate original source bytes in-place.
+printf 'original-hardlink-source' > "$tmp/wave501-hardlink-source.ores"
+ln "$tmp/wave501-hardlink-source.ores" "$tmp/wave501-hardlink-output.ores"
+sh "$root/scripts/stitch-ores.sh" "$tmp/wave501-hardlink-output.ores" "$tmp/wave501-hardlink-source.ores"
+printf 'original-hardlink-source\n' > "$tmp/wave501-hardlink-expected.ores"
+if ! cmp -s "$tmp/wave501-hardlink-output.ores" "$tmp/wave501-hardlink-expected.ores"; then
+  echo "hardlink output did not contain exactly the stitched source" >&2
+  exit 1
+fi
+if [ "$(cat "$tmp/wave501-hardlink-source.ores")" != 'original-hardlink-source' ]; then
+  echo "hardlinked source was modified by publication" >&2
+  exit 1
+fi
+
 echo "stitcher self-test passed"
