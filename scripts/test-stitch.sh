@@ -182,4 +182,20 @@ if [ "$(find "$tmp/permissions.ores" -perm 0600 -print)" != "$tmp/permissions.or
   exit 1
 fi
 
+
+# A later symlink input must reject the entire transaction, even after the
+# first regular input was read. Existing publication and temp cleanup survive.
+printf 'previously-verified-output\n' > "$tmp/late-symlink-output.ores"
+ln -s "$tmp/second.ores" "$tmp/late-symlink-input.ores"
+if sh "$root/scripts/stitch-ores.sh" "$tmp/late-symlink-output.ores" \
+    "$tmp/first.ores" "$tmp/late-symlink-input.ores" >/dev/null 2>&1; then
+  echo "later symlinked input was accepted" >&2
+  exit 1
+fi
+grep -qx 'previously-verified-output' "$tmp/late-symlink-output.ores"
+if [ -n "$(find "$tmp" -maxdepth 1 -name '.ores-stitch.*' -print)" ]; then
+  echo "failed symlink transaction left a temporary output" >&2
+  exit 1
+fi
+
 echo "stitcher self-test passed"
