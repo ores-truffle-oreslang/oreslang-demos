@@ -111,4 +111,19 @@ if [ "$actual_size" -ne 4194308 ]; then
   exit 1
 fi
 
+
+# A later invalid source must not partially publish the bytes of an earlier
+# source or leave a temporary artifact beside a previously valid output.
+printf 'previously published bytes\\n' > "$tmp/later-source-atomic.ores"
+if sh "$root/scripts/stitch-ores.sh" "$tmp/later-source-atomic.ores" \\
+    "$tmp/first.ores" "$tmp/absent-after-first.ores" >/dev/null 2>&1; then
+  echo "invalid later source was accepted" >&2
+  exit 1
+fi
+grep -qx 'previously published bytes' "$tmp/later-source-atomic.ores"
+if [ -n "$(find "$tmp" -maxdepth 1 -name '.ores-stitch.*' -print)" ]; then
+  echo "stitcher left a temporary output after later-source rejection" >&2
+  exit 1
+fi
+
 echo "stitcher self-test passed"
