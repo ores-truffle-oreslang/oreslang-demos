@@ -111,4 +111,16 @@ if [ "$actual_size" -ne 4194308 ]; then
   exit 1
 fi
 
+# A repeated input is an intentional separate source contribution; a zero-byte
+# file contributes exactly one newline separator and never changes ordering.
+printf 'A' > "$tmp/repeat-source.ores"
+: > "$tmp/empty-source.ores"
+sh "$root/scripts/stitch-ores.sh" "$tmp/repeat-output.ores" \
+  "$tmp/repeat-source.ores" "$tmp/empty-source.ores" "$tmp/repeat-source.ores"
+printf 'A\n\nA\n' > "$tmp/repeat-expected.ores"
+if ! cmp -s "$tmp/repeat-expected.ores" "$tmp/repeat-output.ores"; then
+  echo "repeated or empty source input changed ordered stitch bytes" >&2
+  exit 1
+fi
+
 echo "stitcher self-test passed"
