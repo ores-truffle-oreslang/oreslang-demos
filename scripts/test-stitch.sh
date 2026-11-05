@@ -208,17 +208,37 @@ if ! cmp -s "$tmp/exact-one-file-expected.ores" "$tmp/exact-one-file.ores"; then
   exit 1
 fi
 
+# Atomic replacement of a multiply-linked output must not modify the
+# separately linked original publication or inherit its inode permissions.
+printf 'previously-linked-content\n' > "$tmp/hardlink-output.ores"
+ln "$tmp/hardlink-output.ores" "$tmp/hardlink-retained.ores"
+printf 'fresh-published-content\n' > "$tmp/hardlink-input.ores"
+sh "$root/scripts/stitch-ores.sh" "$tmp/hardlink-output.ores" "$tmp/hardlink-input.ores"
+printf 'fresh-published-content\n\n' > "$tmp/hardlink-expected.ores"
+if ! cmp -s "$tmp/hardlink-expected.ores" "$tmp/hardlink-output.ores"; then
+  echo "hardlinked destination publication bytes were corrupted" >&2
+  exit 1
+fi
+if [ "$(cat "$tmp/hardlink-retained.ores")" != 'previously-linked-content' ]; then
+  echo "hardlinked previous publication was modified" >&2
+  exit 1
+fi
+if [ "$(find "$tmp/hardlink-output.ores" -perm 0600 -print)" != "$tmp/hardlink-output.ores" ]; then
+  echo "published replacement did not retain private permissions" >&2
+  exit 1
+fi
+
 # When the intended output is a hardlink to a source, atomic rename must
 # detach the output inode rather than mutate original source bytes in-place.
-printf 'original-hardlink-source' > "$tmp/hardlink-source.ores"
-ln "$tmp/hardlink-source.ores" "$tmp/hardlink-output.ores"
-sh "$root/scripts/stitch-ores.sh" "$tmp/hardlink-output.ores" "$tmp/hardlink-source.ores"
-printf 'original-hardlink-source\n' > "$tmp/hardlink-expected.ores"
-if ! cmp -s "$tmp/hardlink-output.ores" "$tmp/hardlink-expected.ores"; then
+printf 'original-hardlink-source' > "$tmp/wave501-hardlink-source.ores"
+ln "$tmp/wave501-hardlink-source.ores" "$tmp/wave501-hardlink-output.ores"
+sh "$root/scripts/stitch-ores.sh" "$tmp/wave501-hardlink-output.ores" "$tmp/wave501-hardlink-source.ores"
+printf 'original-hardlink-source\n' > "$tmp/wave501-hardlink-expected.ores"
+if ! cmp -s "$tmp/wave501-hardlink-output.ores" "$tmp/wave501-hardlink-expected.ores"; then
   echo "hardlink output did not contain exactly the stitched source" >&2
   exit 1
 fi
-if [ "$(cat "$tmp/hardlink-source.ores")" != 'original-hardlink-source' ]; then
+if [ "$(cat "$tmp/wave501-hardlink-source.ores")" != 'original-hardlink-source' ]; then
   echo "hardlinked source was modified by publication" >&2
   exit 1
 fi
