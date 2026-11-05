@@ -208,4 +208,19 @@ if ! cmp -s "$tmp/exact-one-file-expected.ores" "$tmp/exact-one-file.ores"; then
   exit 1
 fi
 
+# When the intended output is a hardlink to a source, atomic rename must
+# detach the output inode rather than mutate original source bytes in-place.
+printf 'original-hardlink-source' > "$tmp/hardlink-source.ores"
+ln "$tmp/hardlink-source.ores" "$tmp/hardlink-output.ores"
+sh "$root/scripts/stitch-ores.sh" "$tmp/hardlink-output.ores" "$tmp/hardlink-source.ores"
+printf 'original-hardlink-source\\n' > "$tmp/hardlink-expected.ores"
+if ! cmp -s "$tmp/hardlink-output.ores" "$tmp/hardlink-expected.ores"; then
+  echo "hardlink output did not contain exactly the stitched source" >&2
+  exit 1
+fi
+if [ "$(cat "$tmp/hardlink-source.ores")" != 'original-hardlink-source' ]; then
+  echo "hardlinked source was modified by publication" >&2
+  exit 1
+fi
+
 echo "stitcher self-test passed"
