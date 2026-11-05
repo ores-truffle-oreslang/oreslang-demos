@@ -21,6 +21,20 @@ check_bad() {
   fi
 }
 check_ok
+# Bind the policy to the exact reviewed Git HEAD; malformed SOURCE_REF bytes
+# must not become a seemingly valid source identity.
+git -C "$test_repo" commit -qm "baseline policy fixture"
+pinned_head="$(git -C "$test_repo" rev-parse HEAD)"
+EXPECTED_DEMO_SHA="$pinned_head" check_ok
+EXPECTED_DEMO_SHA="$(printf '0%.0s' {1..40})" check_bad
+printf 'a%.0s' {1..40} > "$test_repo/SOURCE_REF"
+printf '\r\n' >> "$test_repo/SOURCE_REF"
+git -C "$test_repo" add SOURCE_REF
+check_bad
+printf 'a%.0s' {1..40} > "$test_repo/SOURCE_REF"
+printf '\n' >> "$test_repo/SOURCE_REF"
+git -C "$test_repo" add SOURCE_REF
+EXPECTED_DEMO_SHA="$pinned_head" check_ok
 mkdir -p "$test_repo/nested space"
 printf 'placeholder\n' > "$test_repo/nested space/unsafe.PY"
 git -C "$test_repo" add .
