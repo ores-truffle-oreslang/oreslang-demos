@@ -213,7 +213,7 @@ fi
 printf 'original-hardlink-source' > "$tmp/hardlink-source.ores"
 ln "$tmp/hardlink-source.ores" "$tmp/hardlink-output.ores"
 sh "$root/scripts/stitch-ores.sh" "$tmp/hardlink-output.ores" "$tmp/hardlink-source.ores"
-printf 'original-hardlink-source\\n' > "$tmp/hardlink-expected.ores"
+printf 'original-hardlink-source\n' > "$tmp/hardlink-expected.ores"
 if ! cmp -s "$tmp/hardlink-output.ores" "$tmp/hardlink-expected.ores"; then
   echo "hardlink output did not contain exactly the stitched source" >&2
   exit 1
