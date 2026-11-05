@@ -208,4 +208,24 @@ if ! cmp -s "$tmp/exact-one-file-expected.ores" "$tmp/exact-one-file.ores"; then
   exit 1
 fi
 
+# Atomic replacement of a multiply-linked output must not modify the
+# separately linked original publication or inherit its inode permissions.
+printf 'previously-linked-content\n' > "$tmp/hardlink-output.ores"
+ln "$tmp/hardlink-output.ores" "$tmp/hardlink-retained.ores"
+printf 'fresh-published-content\n' > "$tmp/hardlink-input.ores"
+sh "$root/scripts/stitch-ores.sh" "$tmp/hardlink-output.ores" "$tmp/hardlink-input.ores"
+printf 'fresh-published-content\n\n' > "$tmp/hardlink-expected.ores"
+if ! cmp -s "$tmp/hardlink-expected.ores" "$tmp/hardlink-output.ores"; then
+  echo "hardlinked destination publication bytes were corrupted" >&2
+  exit 1
+fi
+if [ "$(cat "$tmp/hardlink-retained.ores")" != 'previously-linked-content' ]; then
+  echo "hardlinked previous publication was modified" >&2
+  exit 1
+fi
+if [ "$(find "$tmp/hardlink-output.ores" -perm 0600 -print)" != "$tmp/hardlink-output.ores" ]; then
+  echo "published replacement did not retain private permissions" >&2
+  exit 1
+fi
+
 echo "stitcher self-test passed"
