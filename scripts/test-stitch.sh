@@ -182,4 +182,14 @@ if [ "$(find "$tmp/permissions.ores" -perm 0600 -print)" != "$tmp/permissions.or
   exit 1
 fi
 
+# A source at the exact inclusive one-MiB per-file boundary remains valid.
+# The stitcher appends one newline to the original 1,048,576 bytes.
+sh "$root/scripts/stitch-ores.sh" "$tmp/exact-one-file.ores" "$tmp/one-mib.ores"
+cp "$tmp/one-mib.ores" "$tmp/exact-one-file-expected.ores"
+printf '\n' >> "$tmp/exact-one-file-expected.ores"
+if ! cmp -s "$tmp/exact-one-file-expected.ores" "$tmp/exact-one-file.ores"; then
+  echo "exact 1 MiB per-file source boundary was changed or rejected" >&2
+  exit 1
+fi
+
 echo "stitcher self-test passed"
