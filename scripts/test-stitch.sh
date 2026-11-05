@@ -34,6 +34,23 @@ if "$root/scripts/stitch-ores.sh" "$tmp/self.ores" "$tmp/self.ores" >/dev/null 2
 fi
 grep -q '^define module first as$' "$tmp/self.ores"
 
+# Dot components do not create a different source/output identity.
+if sh "$root/scripts/stitch-ores.sh" "$tmp/./self.ores" "$tmp/self.ores" >/dev/null 2>&1; then
+  echo "dot-path input/output identity alias accepted" >&2
+  exit 1
+fi
+grep -q '^define module first as$' "$tmp/self.ores"
+
+# Symlinked parent directories cannot bypass the canonical source/output fence.
+mkdir -p "$tmp/real-parent"
+printf 'define module original as\nend\n' > "$tmp/real-parent/src.ores"
+ln -s "$tmp/real-parent" "$tmp/parent-alias"
+if sh "$root/scripts/stitch-ores.sh" "$tmp/parent-alias/src.ores" "$tmp/real-parent/src.ores" >/dev/null 2>&1; then
+  echo "symlinked parent input/output alias accepted" >&2
+  exit 1
+fi
+grep -q '^define module original as$' "$tmp/real-parent/src.ores"
+
 dd if=/dev/zero of="$tmp/too-large.ores" bs=1048577 count=1 2>/dev/null
 if "$root/scripts/stitch-ores.sh" "$tmp/rejected-large.ores" "$tmp/too-large.ores" >/dev/null 2>&1; then
   echo "oversized source was accepted" >&2
