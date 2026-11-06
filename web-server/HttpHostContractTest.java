@@ -38,6 +38,26 @@ public final class HttpHostContractTest {
             reject(malformed, null);
         }
 
+        // The raw request target must reject every ASCII control/space
+        // byte, even when it appears after an otherwise valid route prefix.
+        for (int ch = 0; ch <= 0x20; ++ch) {
+            reject("/health" + (char) ch, null);
+        }
+        reject("/health" + (char) 0x7f, null);
+        // A literal unpaired surrogate and valid non-ASCII scalar alike
+        // are outside the deliberately ASCII-only host route contract.
+        reject("/health" + (char) 0xd800, null);
+        reject("/health" + (char) 0xdc00, null);
+        reject("/health" + "\u00e9", null);
+
+        // Endpoints of admitted printable ASCII remain valid; the gate
+        // must not accidentally overblock punctuation or near-dot names.
+        accept("/!");
+        accept("/~");
+        accept("/..hidden");
+        accept("/a.b");
+        accept("/a:b@c");
+
         System.out.println("HTTP host target contract tests passed");
     }
 
