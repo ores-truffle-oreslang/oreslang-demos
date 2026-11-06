@@ -374,4 +374,25 @@ if [ -n "$(find "$tmp" -maxdepth 1 -name '.ores-stitch.*' -print)" ]; then
   exit 1
 fi
 
+# A FIFO destination is never a publication target: it must not be opened,
+# consumed or replaced, even with a valid source staged for the transaction.
+mkfifo "$tmp/wave3007-fifo-output.ores"
+printf 'safe FIFO source\n' > "$tmp/wave3007-fifo-input.ores"
+fifo_status=0
+timeout 5 sh "$root/scripts/stitch-ores.sh" \
+  "$tmp/wave3007-fifo-output.ores" "$tmp/wave3007-fifo-input.ores" \
+  >/dev/null 2>&1 || fifo_status=$?
+if [ "$fifo_status" -ne 65 ]; then
+  echo "FIFO destination did not reject promptly (status=$fifo_status)" >&2
+  exit 1
+fi
+if [ ! -p "$tmp/wave3007-fifo-output.ores" ]; then
+  echo "FIFO destination was overwritten" >&2
+  exit 1
+fi
+if [ -n "$(find "$tmp" -maxdepth 1 -name '.ores-stitch.*' -print)" ]; then
+  echo "FIFO destination rejection leaked a temporary file" >&2
+  exit 1
+fi
+
 echo "stitcher self-test passed"
