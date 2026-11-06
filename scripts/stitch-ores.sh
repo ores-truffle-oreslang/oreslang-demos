@@ -19,6 +19,12 @@ if [ -L "$output" ]; then
   echo "refusing symlinked stitch output: $output" >&2
   exit 65
 fi
+# Atomic rename must target a regular file name, not descend into an existing
+# directory or replace a FIFO/device. Verify before staging any source bytes.
+if [ -e "$output" ] && [ ! -f "$output" ]; then
+  echo "refusing non-regular stitch output: $output" >&2
+  exit 65
+fi
 output_dir="$(dirname "$output")"
 if [ ! -d "$output_dir" ]; then
   echo "stitch output directory does not exist: $output_dir" >&2
