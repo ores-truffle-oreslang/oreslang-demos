@@ -262,4 +262,50 @@ if [ -n "$(find "$tmp" -maxdepth 1 -name '.ores-stitch.*' -print)" ]; then
   exit 1
 fi
 
+
+# Multibyte UTF-8, CRLF and literal HTML metacharacters must be copied exactly
+# without newline normalization, interpolation or shell expansion.
+printf 'αβ\r\n"<&\n' > "$tmp/wave2032a-first.ores"
+printf '🔥\r\n' > "$tmp/wave2032a-second.ores"
+sh "$root/scripts/stitch-ores.sh" "$tmp/wave2032a-unicode-output.ores" \
+  "$tmp/wave2032a-first.ores" "$tmp/wave2032a-second.ores"
+printf 'αβ\r\n"<&\n\n🔥\r\n\n' > "$tmp/wave2032a-expected.ores"
+if ! cmp -s "$tmp/wave2032a-expected.ores" "$tmp/wave2032a-unicode-output.ores"; then
+  echo "UTF-8 or CRLF source bytes were changed during stitching" >&2
+  exit 1
+fi
+
+# Two concurrent publishers may race to the same output name, but readers
+# must get exactly one fully assembled publication. Atomic rename also leaves
+# both immutable source files and private output permissions intact.
+printf 'alpha-race-source' > "$tmp/wave2032a-alpha.ores"
+printf 'beta-race-source' > "$tmp/wave2032a-beta.ores"
+printf 'alpha-race-source\n' > "$tmp/wave2032a-alpha-expected.ores"
+printf 'beta-race-source\n' > "$tmp/wave2032a-beta-expected.ores"
+for race in 1 2 3 4 5 6 7 8; do
+  sh "$root/scripts/stitch-ores.sh" "$tmp/wave2032a-race-output.ores" \
+    "$tmp/wave2032a-alpha.ores" &
+  alpha_pid=$!
+  sh "$root/scripts/stitch-ores.sh" "$tmp/wave2032a-race-output.ores" \
+    "$tmp/wave2032a-beta.ores" &
+  beta_pid=$!
+  wait "$alpha_pid"
+  wait "$beta_pid"
+  if ! cmp -s "$tmp/wave2032a-race-output.ores" "$tmp/wave2032a-alpha-expected.ores" &&
+     ! cmp -s "$tmp/wave2032a-race-output.ores" "$tmp/wave2032a-beta-expected.ores"; then
+    echo "concurrent publication exposed torn or interleaved source bytes" >&2
+    exit 1
+  fi
+  if [ "$(find "$tmp/wave2032a-race-output.ores" -perm 0600 -print)" != "$tmp/wave2032a-race-output.ores" ]; then
+    echo "concurrent stitch publication lost private permissions" >&2
+    exit 1
+  fi
+done
+grep -qx 'alpha-race-source' "$tmp/wave2032a-alpha.ores"
+grep -qx 'beta-race-source' "$tmp/wave2032a-beta.ores"
+if [ -n "$(find "$tmp" -maxdepth 1 -name '.ores-stitch.*' -print)" ]; then
+  echo "concurrent publishers leaked temporary output files" >&2
+  exit 1
+fi
+
 echo "stitcher self-test passed"
