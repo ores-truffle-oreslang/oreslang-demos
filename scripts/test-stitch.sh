@@ -396,3 +396,34 @@ if [ -n "$(find "$tmp" -maxdepth 1 -name '.ores-stitch.*' -print)" ]; then
 fi
 
 echo "stitcher self-test passed"
+
+# An existing named-pipe *destination* must be rejected before the stitcher
+# opens or stages any source; do not block trying to write to a FIFO.
+# This complements the existing nonregular SOURCE admission checks.
+fifo_output="$tmp/wave1609-output-pipe.ores"
+mkfifo "$fifo_output"
+printf 'safe input bytes' > "$tmp/wave1609-input.ores"
+fifo_status=0
+timeout 5 sh "$root/scripts/stitch-ores.sh" \
+  "$fifo_output" "$tmp/wave1609-input.ores" \
+  >/dev/null 2>&1 || fifo_status=$?
+if [ "$fifo_status" -ne 65 ]; then
+  echo "nonregular FIFO destination did not fail closed (status=$fifo_status)" >&2
+  exit 1
+fi
+test -p "$fifo_output"
+grep -qx 'safe input bytes' "$tmp/wave1609-input.ores"
+if [ -n "$(find "$tmp" -maxdepth 1 -name '.ores-stitch.*' -print)" ]; then
+  echo "FIFO output refusal leaked temporary files" >&2
+  exit 1
+fi
+
+# A successful subsequent regular publication must not be poisoned by the
+# earlier failure; preserve the precise source and newline separator bytes.
+sh "$root/scripts/stitch-ores.sh" \
+  "$tmp/wave1609-safe-output.ores" "$tmp/wave1609-input.ores"
+printf 'safe input bytes\n' > "$tmp/wave1609-expected.ores"
+if ! cmp -s "$tmp/wave1609-safe-output.ores" "$tmp/wave1609-expected.ores"; then
+  echo "valid publication failed after FIFO rejection" >&2
+  exit 1
+fi
