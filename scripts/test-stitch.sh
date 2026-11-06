@@ -336,4 +336,42 @@ if [ -n "$(find "$tmp" -maxdepth 1 -name '.ores-stitch.*' -print)" ]; then
   exit 1
 fi
 
+# An existing output DIRECTORY must never become the implicit destination
+# for the temporary file through mv's directory-target semantics.
+mkdir "$tmp/wave2040-existing-output-dir.ores"
+printf 'leave directory member untouched\n' > "$tmp/wave2040-existing-output-dir.ores/sentinel"
+directory_status=0
+sh "$root/scripts/stitch-ores.sh" "$tmp/wave2040-existing-output-dir.ores" \
+  "$tmp/first.ores" >/dev/null 2>&1 || directory_status=$?
+if [ "$directory_status" -ne 65 ]; then
+  echo "directory output was accepted or returned wrong status" >&2
+  exit 1
+fi
+grep -qx 'leave directory member untouched' \
+  "$tmp/wave2040-existing-output-dir.ores/sentinel"
+if [ "$(find "$tmp/wave2040-existing-output-dir.ores" -mindepth 1 -type f | wc -l | tr -d '[:space:]')" -ne 1 ]; then
+  echo "stitch temporary file leaked into output directory" >&2
+  exit 1
+fi
+
+# A FIFO destination is not a regular publication and must be rejected
+# before staging; after rejection a normal file can still be published.
+mkfifo "$tmp/wave2040-fifo-output.ores"
+fifo_status=0
+sh "$root/scripts/stitch-ores.sh" "$tmp/wave2040-fifo-output.ores" \
+  "$tmp/first.ores" >/dev/null 2>&1 || fifo_status=$?
+if [ "$fifo_status" -ne 65 ]; then
+  echo "FIFO output was accepted or returned wrong status" >&2
+  exit 1
+fi
+test -p "$tmp/wave2040-fifo-output.ores"
+rm "$tmp/wave2040-fifo-output.ores"
+sh "$root/scripts/stitch-ores.sh" "$tmp/wave2040-fifo-output.ores" "$tmp/first.ores"
+{ cat "$tmp/first.ores"; printf '\n'; } > "$tmp/wave2040-fifo-expected.ores"
+cmp -s "$tmp/wave2040-fifo-expected.ores" "$tmp/wave2040-fifo-output.ores"
+if [ -n "$(find "$tmp" -maxdepth 1 -name '.ores-stitch.*' -print)" ]; then
+  echo "non-regular output rejection left a temporary file" >&2
+  exit 1
+fi
+
 echo "stitcher self-test passed"
