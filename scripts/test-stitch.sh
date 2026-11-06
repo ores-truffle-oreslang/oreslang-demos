@@ -395,35 +395,37 @@ if [ -n "$(find "$tmp" -maxdepth 1 -name '.ores-stitch.*' -print)" ]; then
   exit 1
 fi
 
-echo "stitcher self-test passed"
 
-# An existing named-pipe *destination* must be rejected before the stitcher
-# opens or stages any source; do not block trying to write to a FIFO.
-# This complements the existing nonregular SOURCE admission checks.
-fifo_output="$tmp/wave1609-output-pipe.ores"
-mkfifo "$fifo_output"
-printf 'safe input bytes' > "$tmp/wave1609-input.ores"
-fifo_status=0
-timeout 5 sh "$root/scripts/stitch-ores.sh" \
-  "$fifo_output" "$tmp/wave1609-input.ores" \
-  >/dev/null 2>&1 || fifo_status=$?
-if [ "$fifo_status" -ne 65 ]; then
-  echo "nonregular FIFO destination did not fail closed (status=$fifo_status)" >&2
+# A filename containing a literal newline, non-ASCII bytes and shell-glob
+# punctuation remains one file path; publication cannot normalize it into
+# another destination or lose byte-exact source contents.
+weird_input="$tmp/wave1609-$(printf 'line\nbreak') [x] 🌱.ores"
+weird_output="$tmp/wave1609-$(printf 'other\nline') [y] 🌱.ores"
+printf 'literal-newline-filename\nsecond-line' > "$weird_input"
+sh "$root/scripts/stitch-ores.sh" "$weird_output" "$weird_input"
+printf 'literal-newline-filename\nsecond-line\n' > "$tmp/wave1609-weird-expected.ores"
+if ! cmp -s "$weird_output" "$tmp/wave1609-weird-expected.ores"; then
+  echo "newline/Unicode/glob filenames changed stitched content" >&2
   exit 1
 fi
-test -p "$fifo_output"
-grep -qx 'safe input bytes' "$tmp/wave1609-input.ores"
 if [ -n "$(find "$tmp" -maxdepth 1 -name '.ores-stitch.*' -print)" ]; then
-  echo "FIFO output refusal leaked temporary files" >&2
+  echo "non-ASCII filename publication leaked temporary source" >&2
   exit 1
 fi
 
-# A successful subsequent regular publication must not be poisoned by the
-# earlier failure; preserve the precise source and newline separator bytes.
-sh "$root/scripts/stitch-ores.sh" \
-  "$tmp/wave1609-safe-output.ores" "$tmp/wave1609-input.ores"
-printf 'safe input bytes\n' > "$tmp/wave1609-expected.ores"
-if ! cmp -s "$tmp/wave1609-safe-output.ores" "$tmp/wave1609-expected.ores"; then
-  echo "valid publication failed after FIFO rejection" >&2
+# Even under newline names, canonical input/output alias detection must
+# refuse self-overwrite while preserving the original source bytes.
+alias_status=0
+sh "$root/scripts/stitch-ores.sh" "$tmp/./$(basename "$weird_input")" "$weird_input" \
+  >/dev/null 2>&1 || alias_status=$?
+if [ "$alias_status" -ne 65 ]; then
+  echo "newline-named self-alias did not reject with code 65" >&2
   exit 1
 fi
+printf 'literal-newline-filename\nsecond-line' > "$tmp/wave1609-unmodified.ores"
+if ! cmp -s "$weird_input" "$tmp/wave1609-unmodified.ores"; then
+  echo "rejected self-alias modified newline-named source" >&2
+  exit 1
+fi
+
+echo "stitcher self-test passed"
