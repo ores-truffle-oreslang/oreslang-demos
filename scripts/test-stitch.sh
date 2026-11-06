@@ -262,4 +262,33 @@ if [ -n "$(find "$tmp" -maxdepth 1 -name '.ores-stitch.*' -print)" ]; then
   exit 1
 fi
 
+# Later oversized per-file input must reject the ENTIRE publication even
+# after a previously valid source was already appended to the staging file.
+# Unlike the aggregate-limit fixture, this exercises the per-input 1 MiB gate.
+dd if=/dev/zero of="$tmp/wave3400-late-oversize.ores" bs=1048577 count=1 2>/dev/null
+printf 'retained-output-from-before\n' > "$tmp/wave3400-late-output.ores"
+late_status=0
+sh "$root/scripts/stitch-ores.sh" "$tmp/wave3400-late-output.ores" \
+  "$tmp/first.ores" "$tmp/wave3400-late-oversize.ores" \
+  >/dev/null 2>&1 || late_status=$?
+if [ "$late_status" -ne 65 ]; then
+  echo "later oversized per-file source accepted or returned wrong status: $late_status" >&2
+  exit 1
+fi
+grep -qx 'retained-output-from-before' "$tmp/wave3400-late-output.ores"
+if [ -n "$(find "$tmp" -maxdepth 1 -name '.ores-stitch.*' -print)" ]; then
+  echo "later oversized source left behind staged bytes" >&2
+  exit 1
+fi
+# Correcting only the second source to the inclusive bound restores a
+# successful publication with exactly one inserted newline per source.
+sh "$root/scripts/stitch-ores.sh" "$tmp/wave3400-late-output.ores" \
+  "$tmp/first.ores" "$tmp/one-mib.ores"
+{ cat "$tmp/first.ores"; printf '\n'; cat "$tmp/one-mib.ores"; printf '\n'; } \
+  > "$tmp/wave3400-late-expected.ores"
+if ! cmp -s "$tmp/wave3400-late-output.ores" "$tmp/wave3400-late-expected.ores"; then
+  echo "valid post-rejection publication changed source order or bytes" >&2
+  exit 1
+fi
+
 echo "stitcher self-test passed"
