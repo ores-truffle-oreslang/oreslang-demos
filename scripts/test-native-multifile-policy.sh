@@ -15,7 +15,11 @@ for path in \
   native-multifile/module/main.atto \
   native-multifile/module/contract.atto \
   native-multifile/module/alias-leak.atto \
-  native-multifile/negative/missing-helper.atto; do
+  native-multifile/negative/missing-helper.atto \
+  native-multifile/negative/ambiguous-import.atto \
+  native-multifile/negative/conflicts.atto \
+  native-multifile/negative/ownership-conflict.atto \
+  native-multifile/negative/ownership-valid.atto; do
   test -f "$path" && test -s "$path" && test ! -L "$path"
 done
 test -z "$(find native-multifile -type l -print -quit)"
@@ -24,11 +28,17 @@ grep -Fq 'import fnc answer from "./math";' native-multifile/src/main.atto
 grep -Fq 'import module transport_contract as tc from "./contract.atto";' native-multifile/module/main.atto
 grep -Fq 'pub fnc answer(): int' native-multifile/src/math.atto
 grep -Fq 'define module transport_contract as' native-multifile/module/contract.atto
+grep -Fq 'import fnc collide from "./conflicts.atto";' native-multifile/negative/ambiguous-import.atto
+grep -Fq 'touch(rt mut borrow box, rt mut borrow box);' native-multifile/negative/ownership-conflict.atto
+grep -Fq 'touch(rt mut borrow left, rt mut borrow right);' native-multifile/negative/ownership-valid.atto
 
 # The runnable pathway must invoke the original entrypoint and must not
 # concatenate/copypaste all source units or use a hidden stitcher fallback.
 test ! -L scripts/run-native-multifile-java.sh
 bash -n scripts/run-native-multifile-java.sh
+bash -n scripts/atto-negative-oracle.sh
+bash -n scripts/test-atto-negative-oracle.sh
+bash scripts/test-atto-negative-oracle.sh
 if grep -Eq '(^|[[:space:]])(cat|paste)[[:space:]].*\\*\\.atto|stitch-ores[.]sh' \
   scripts/run-native-multifile-java.sh; then
   echo 'STRUCTURAL_FAILURE: compiler runner contains a stitch fallback' >&2
