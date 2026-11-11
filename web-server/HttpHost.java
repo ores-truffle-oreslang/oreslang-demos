@@ -152,16 +152,13 @@ public final class HttpHost {
         int read;
 
         while ((read = input.read(buffer)) != -1) {
-            long before = total;
             total += read;
-            if (before < maxBytes) {
-                int keep = (int) Math.min(read, maxBytes - before);
-                kept.write(buffer, 0, keep);
+            // Stop consuming an oversized stream immediately rather than
+            // waiting for EOF from a process that may never close its pipes.
+            if (total > maxBytes) {
+                throw new IOException("guest output exceeded " + maxBytes + " bytes");
             }
-        }
-
-        if (total > maxBytes) {
-            throw new IOException("guest output exceeded " + maxBytes + " bytes");
+            kept.write(buffer, 0, read);
         }
         return kept.toString(StandardCharsets.UTF_8);
     }
