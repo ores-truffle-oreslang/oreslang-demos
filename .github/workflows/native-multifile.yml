@@ -1,0 +1,78 @@
+name: Native multi-file AttoLang Java guest
+on:
+  pull_request:
+    paths:
+      - 'native-multifile/**'
+      - 'scripts/run-native-multifile-java.sh'
+      - 'scripts/test-native-multifile-policy.sh'
+      - '.github/workflows/native-multifile.yml'
+  workflow_dispatch:
+    inputs:
+      expected_demo_sha:
+        description: 'Exact reviewed main SHA; must equal workflow dispatch SHA'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  host-policy:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha || inputs.expected_demo_sha }}
+          persist-credentials: false
+      - name: Enforce exact demo SHA
+        shell: bash
+        env:
+          EXPECTED_HEAD: ${{ github.event.pull_request.head.sha || inputs.expected_demo_sha }}
+        run: |
+          set -euo pipefail
+          [[ "$EXPECTED_HEAD" =~ ^[a-f0-9]{40}$ ]]
+          test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
+      - name: Run source-only native multi-file policy (NOT guest execution)
+        shell: bash
+        run: bash scripts/test-native-multifile-policy.sh
+
+  trusted-java-guest:
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
+    runs-on: [self-hosted, linux, x64, oreslang-jdk25]
+    timeout-minutes: 30
+    steps:
+      - name: Restrict private-compiler execution to exact dispatched main
+        shell: bash
+        env:
+          EXPECTED: ${{ inputs.expected_demo_sha }}
+          DISPATCH_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          [[ "$EXPECTED" =~ ^[a-f0-9]{40}$ ]]
+          test "$EXPECTED" = "$DISPATCH_SHA"
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          ref: ${{ inputs.expected_demo_sha }}
+          persist-credentials: false
+      - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
+        with:
+          distribution: temurin
+          java-version: '25'
+      - name: Execute native linked .atto guest and negative imports
+        shell: bash
+        env:
+          ATTO_EXPECTED_DEMO_SHA: ${{ inputs.expected_demo_sha }}
+          ATTO_RECEIPT_DIR: ${{ runner.temp }}/atto-native-multifile-receipt
+        run: bash scripts/run-native-multifile-java.sh
+      - name: Retain exact-head guest evidence (even on failure)
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: native-multifile-java-guest-receipt
+          path: ${{ runner.temp }}/atto-native-multifile-receipt
+          if-no-files-found: warn
