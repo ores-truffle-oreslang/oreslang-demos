@@ -169,6 +169,33 @@ public final class HttpHostContractTest {
             if (ProcessHandle.of(pid).map(ProcessHandle::isAlive).orElse(false)) {
                 throw new AssertionError("fake compiler descendant survived cleanup");
             }
+
+            // A compiler that exceeds stdout budget and then hangs must fail
+            // promptly, not consume its entire 10-second process deadline.
+            java.nio.file.Files.writeString(compiler, "#!/bin/sh\n"
+                    + "head -c 1114112 /dev/zero\n"
+                    + "sleep 30\n");
+            ProcessBuilder overflowBuilder = new ProcessBuilder(javaExecutable,
+                    "-cp", "web-server", "HttpHost", source.toString());
+            overflowBuilder.environment().put("ORESLANG_COMPILER", compiler.toString());
+            overflowBuilder.redirectErrorStream(true);
+            long overflowStarted = System.nanoTime();
+            Process overflow = overflowBuilder.start();
+            try {
+                if (!overflow.waitFor(5, java.util.concurrent.TimeUnit.SECONDS)) {
+                    throw new AssertionError("oversized guest output did not abort promptly");
+                }
+                if (overflow.exitValue() == 0) {
+                    throw new AssertionError("oversized guest output was accepted");
+                }
+                long overflowElapsedMs = java.util.concurrent.TimeUnit.NANOSECONDS.toMillis(
+                        System.nanoTime() - overflowStarted);
+                if (overflowElapsedMs >= 5_000) {
+                    throw new AssertionError("oversized guest waited until deadline");
+                }
+            } finally {
+                if (overflow.isAlive()) overflow.destroyForcibly();
+            }
         } finally {
             if (host != null && host.isAlive()) host.destroyForcibly();
             if (java.nio.file.Files.isRegularFile(pidFile)) {
