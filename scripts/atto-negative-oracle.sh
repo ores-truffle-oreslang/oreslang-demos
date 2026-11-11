@@ -59,6 +59,13 @@ if [[ "$(wc -l < "$stderr_file")" -ne 1 ]]; then
   echo "ORACLE_REJECT $case_name: require exactly one diagnostic line" >&2
   exit 1
 fi
+# Reject control bytes, binary/NUL/ANSI log injection and non-ASCII output.
+# The pinned Java CLI sanitizes diagnostics and our reviewed fixture paths are
+# ASCII-only. A grep regex match inside an unsanitized byte stream is not proof.
+if ! cmp -s "$stderr_file" <(LC_ALL=C tr -cd '\012\040-\176' < "$stderr_file"); then
+  echo "ORACLE_REJECT $case_name: nonprintable or non-ASCII diagnostic bytes" >&2
+  exit 1
+fi
 if LC_ALL=C grep -Eiq 'maven|\[ERROR\]|NoClassDefFoundError|Exception in thread|org[.]codehaus|org[.]apache|java[.]lang' "$stderr_file"; then
   echo "ORACLE_REJECT $case_name: infrastructure error present" >&2
   exit 1
