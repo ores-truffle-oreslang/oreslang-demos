@@ -105,6 +105,11 @@ public final class HttpHost {
             // children otherwise disappear from ProcessHandle.descendants().
             while (true) {
                 observeDescendants(process, observedDescendants);
+                // A reader can fail before process exit (for example at the
+                // byte cap). Abort promptly instead of waiting the full
+                // process deadline for a still-running or blocked writer.
+                if (stdout.isDone()) getCaptured(stdout, "stdout", deadlineNanos);
+                if (stderr.isDone()) getCaptured(stderr, "stderr", deadlineNanos);
                 long remaining = deadlineNanos - System.nanoTime();
                 if (remaining <= 0) {
                     throw new IllegalStateException("Oreslang guest exceeded the demo timeout");
