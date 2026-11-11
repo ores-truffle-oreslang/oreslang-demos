@@ -51,6 +51,24 @@ reject aliased-module-leak 137 '/tmp/fixtures/alias-leak.atto:1:1: error: unknow
 reject missing-import 1 $'/tmp/fixtures/missing-helper.atto:1:1: error: import does not resolve to a file\n[ERROR] Maven failure'
 reject ambiguous-import 1 '/tmp/fixtures/ambiguous-import.atto:1:1: error: import fnc collide is ambiguous in contracts.atto [ERROR] Maven'
 reject ownership-conflict 1 $'/tmp/fixtures/ownership-conflict.atto:1:1: error: overlapping mutable borrow arguments\njava.lang.NoClassDefFoundError'
+# Binary and terminal-control bytes must not bypass the diagnostic oracle.
+reject missing-import 1 
+reject missing-import 1 '/tmp/fixtures/missing-helper.atto:1:1: error: import does not resolve to a file'
+: > "$out"
+printf 'ATTO_NEGATIVE_ORACLE_HOST_SELF_TEST_PASS accepts=%s rejects=%s NOT_EXECUTED\n' "$passed" "$failed_expected"
+/tmp/fixtures/missing-helper.atto:1:1: error: import does not resolve to a file\r'
+reject ambiguous-import 1 
+reject missing-import 1 '/tmp/fixtures/missing-helper.atto:1:1: error: import does not resolve to a file'
+: > "$out"
+printf 'ATTO_NEGATIVE_ORACLE_HOST_SELF_TEST_PASS accepts=%s rejects=%s NOT_EXECUTED\n' "$passed" "$failed_expected"
+/tmp/fixtures/ambiguous-import.atto:1:1: error: import fnc collide is ambiguous in contracts.atto\033[0m'
+printf '/tmp/fixtures/missing-helper.atto:1:1: error: import does not resolve to a file\\n' > "$err"
+printf '\\000' >> "$err"
+if bash "$oracle" missing-import 1 "$out" "$err" > /dev/null 2>&1; then
+  echo "ORACLE_SELF_TEST_FAILURE NUL byte accepted" >&2
+  exit 1
+fi
+failed_expected=$((failed_expected + 1))
 printf '42' > "$out"
 reject missing-import 1 '/tmp/fixtures/missing-helper.atto:1:1: error: import does not resolve to a file'
 : > "$out"
