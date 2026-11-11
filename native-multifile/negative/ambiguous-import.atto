@@ -1,0 +1,7 @@
+import fnc collide from "./conflicts.atto";
+
+// Must fail during linked import resolution before any guest execution.
+pub fnc main(): void {
+  stdio.stdout.write(collide());
+  return;
+}

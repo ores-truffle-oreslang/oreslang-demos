@@ -1,0 +1,14 @@
+// Positive control: same grammar and callable, two distinct owned values.
+define class Box as
+  pub let int value = 0;
+end
+
+fnc touch(borrow mut Box a, borrow mut Box b): void { return; }
+
+pub fnc main(): void {
+  val Box left = new Box();
+  val Box right = new Box();
+  touch(rt mut borrow left, rt mut borrow right);
+  stdio.stdout.write(42);
+  return;
+}

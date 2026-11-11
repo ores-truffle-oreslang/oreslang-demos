@@ -1,0 +1,6 @@
+import fnc answer from "./does-not-exist";
+
+pub fnc main(): void {
+  stdio.stdout.write(answer());
+  return;
+}

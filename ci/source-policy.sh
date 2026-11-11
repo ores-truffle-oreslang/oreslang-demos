@@ -23,7 +23,7 @@ while IFS= read -r -d '' path; do
   (( count <= 50000 )) || { echo "POLICY_FAILURE: file budget" >&2; exit 2; }
   if [[ -L "$path" ]]; then
     case "${path,,}" in
-      *.ores|*.py|*.pyi|*.ipynb)
+      *.ores|*.atto|*.py|*.pyi|*.ipynb)
         echo "POLICY_FAILURE: symlinked source: $path" >&2; exit 2 ;;
     esac
   fi

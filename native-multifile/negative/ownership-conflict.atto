@@ -1,0 +1,12 @@
+// Source shape taken from Java/Graal compiler's InvocationMutableBorrowAliasTest.
+define class Box as
+  pub let int value = 0;
+end
+
+fnc touch(borrow mut Box a, borrow mut Box b): void { return; }
+
+pub fnc main(): void {
+  val Box box = new Box();
+  touch(rt mut borrow box, rt mut borrow box);
+  return;
+}
