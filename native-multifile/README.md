@@ -11,7 +11,10 @@ existing stitched examples, or their behavior.
 | Linked function | `src/main.atto` imports `./math` | Execute real linked guest, output exactly `42` |
 | Qualified class | `module/main.atto` imports module `tc` from `contract.atto` | Resolve `tc.Request`, output exactly `42` |
 | Missing import | `negative/missing-helper.atto` | Reject unresolved relative source |
-| Leaked alias | `module/alias-leak.atto` | Reject unaliased `transport_contract.Request` |
+| Leaked alias | `module/alias-leak.atto` | Reject unaliased `transport_contract.Request` **at compile time** |
+| Ambiguous function import | `negative/ambiguous-import.atto` and `conflicts.atto` | Reject an exported name provided by two modules |
+| Conflicting mutable borrows | `negative/ownership-conflict.atto` | Reject simultaneous `rt mut borrow` loans of the same owner |
+| Distinct mutable borrows | `negative/ownership-valid.atto` | Accept two independent owners and execute guest to produce `42` |
 
 The module-qualified class test intentionally exercises a compiler behavior
 that has had upstream guest-resolution problems. A failed test is a useful
@@ -44,7 +47,10 @@ bash ci/test-source-policy.sh
 
 These run with a public GitHub-hosted runner on PRs. They verify file
 integrity, canonical suffixes, no symlinks, no source stitching, and fail-closed
-runner identity admission; **they never compile or execute AttoLang**.
+runner identity admission. `scripts/test-atto-negative-oracle.sh` supplies
+synthetic compiler/Maven logs to prove the **oracle fails closed** against
+unrelated infrastructure errors, wrong source locations, timeouts, misleading
+exit codes, and guest stdout. **They never compile or execute AttoLang**.
 
 ## Exact Java/Graal guest execution (trusted runner only)
 
@@ -61,9 +67,11 @@ bash scripts/run-native-multifile-java.sh
 
 The runner rejects mismatched/dirty source trees, malformed commit IDs,
 symlinked receipt directories, and unsafe Maven argument paths. It builds
-the exact compiler via Maven, invokes entrypoint `.atto` files, checks output
-and negative import failures, and records demo/compiler Git heads and trees
-plus compiler artifact SHA-256 hashes and per-case output. A successful
+the exact compiler via Maven, invokes entrypoint `.atto` files, checks output and four negative compile-time failure cases with specific,
+anchored compiler diagnostics, and records demo/compiler Git heads and trees,
+source and artifact SHA-256 hashes, exact phase/exit codes, and per-case output.
+An exit code of `1` alone does **not** make a negative test pass, and an
+unrelated Maven or classpath error cannot satisfy the source-specific oracle. A successful
 Maven build **alone** is never a guest-execution pass.
 
 The `native-multifile.yml` workflow's public PR job is source-only. Its
@@ -88,3 +96,17 @@ source-free canary is not a guest execution receipt.
 
 Related: [historical exact-compiler inventory issue #9](https://github.com/ores-truffle-oreslang/oreslang-demos/issues/9)
 and [native multi-file qualification issue #47](https://github.com/ores-truffle-oreslang/oreslang-demos/issues/47).
+
+## Known remaining limitations
+
+This runner is a **candidate**, not completed guest evidence. The compiler's
+`--check` diagnostics have not been executed at the pinned source head in this
+repo. The oracle intentionally requires phase-specific error messages and may
+remain red until the compiler emits the documented diagnostics. In particular,
+a module alias that is accepted by typechecking but fails later in the
+runtime **must not** be treated as an acceptable compile-time rejection.
+
+The runner does not prove production-grade sandbox isolation, package artifact
+signing, direct AOT native executable output, or independent LLVM/.NET/Wasm/Forge
+parity. Do not promote the PR until exact-head guest receipts and independent
+review are available.
