@@ -110,11 +110,11 @@ public final class HttpHostContractTest {
         java.nio.file.Path pidFile = dir.resolve("fake-compiler.sh.child-pid");
         Process host = null;
         try {
-            java.nio.file.Files.writeString(source, "not a real AttoLang program\\n");
-            java.nio.file.Files.writeString(compiler, "#!/bin/sh\\n"
-                    + "sleep 30 &\\n"
-                    + "printf '%s\\\\n' \\"$!\\" > \\"$0.child-pid\\"\\n"
-                    + "wait\\n");
+            java.nio.file.Files.writeString(source, "not a real AttoLang program\n");
+            java.nio.file.Files.writeString(compiler, "#!/bin/sh\n"
+                    + "sleep 30 &\n"
+                    + "printf '%s\\n' \"$!\" > \"$0.child-pid\"\n"
+                    + "wait\n");
             if (!compiler.toFile().setExecutable(true)) {
                 throw new AssertionError("fake compiler chmod failed");
             }
