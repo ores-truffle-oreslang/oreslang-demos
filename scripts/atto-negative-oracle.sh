@@ -26,9 +26,8 @@ case "$case_name" in
     diagnostic='^/[^[:cntrl:]]*/ownership-conflict[.]atto:[0-9]+:[0-9]+: error: .*overlapping mutable borrow arguments'
     ;;
   aliased-module-leak)
-    # Runtime entrypoint errors use "oreslang: ..."; a generic Maven
-    # NoClassDefFoundError is not a language diagnostic.
-    diagnostic='^oreslang: .*unknown class transport_contract[.]Request([[:space:]]|$)'
+    # Aliasing must be rejected by source analysis, not merely at runtime.
+    diagnostic='^/[^[:cntrl:]]*/alias-leak[.]atto:[0-9]+:[0-9]+: error: .*unknown class transport_contract[.]Request([[:space:]]|$)'
     ;;
   *)
     echo "ORACLE_REJECT unknown case=$case_name" >&2
