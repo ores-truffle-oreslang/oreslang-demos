@@ -83,6 +83,36 @@ arbitrary execution on a trusted private-compiler runner. Before merge,
 independent maintainers may run the documented exact-head guest script on an
 authorized isolated runner and attach the resulting receipts for review.
 
+## Runtime classpath supply-chain audit
+
+The trusted Java runner now invokes `scripts/atto-runtime-classpath-audit.sh`
+between its clean Maven build and any guest execution. The audit requires one
+bounded ASCII classpath record with nonempty entries, canonical absolute JAR
+paths, no symlinks (including path aliases), no duplicate entries, and no
+injected control bytes. It SHA-256 hashes each runtime JAR and every compiled
+class-file/tree member. The test job fails closed on malformed Maven output;
+a JAR hash is **identity evidence**, not a signature or proof of trust.
+
+`scripts/test-atto-runtime-classpath-audit.sh` exercises two synthetic
+well-formed classpaths and sixteen adversarial malformed cases, without any
+private AttoLang source or Maven dependencies. The existing negative
+diagnostic oracle similarly runs host-only mutation tests; neither test
+exercises actual guest linking.
+
+## Cross-organization CI boundary
+
+The Java compiler is private. Its checked-in
+`docs/security/CI_PRIVATE_SOURCE_MIRRORING.md` requires approved destination
+identity, protected source main and independent security-owner attestation
+before **any** private source-bearing transfer. Current source-main reports
+`protected: false`, so this qualification does **not** mirror compiler blobs
+to another organization, even if that organization has working Actions runners.
+
+An alternate-org **source-free** carrier may mirror exact SHA-identical public
+checker scripts and run their host-only tests. Keep that evidence separately
+labeled `NOT_EXECUTED` for the compiler guest. Never substitute source-free
+runners or copied fixture text for a compiler-backed guest receipt.
+
 ## Evidence policy
 
 Do not mark this example verified unless the **exact demo PR head** and
