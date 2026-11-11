@@ -36,6 +36,13 @@ grep -Fq 'touch(rt mut borrow left, rt mut borrow right);' native-multifile/nega
 # concatenate/copypaste all source units or use a hidden stitcher fallback.
 test ! -L scripts/run-native-multifile-java.sh
 bash -n scripts/run-native-multifile-java.sh
+# The guest runner must invoke a dedicated Java process, never exec:java via
+# Maven, whose plugin errors could be mistaken for compiler diagnostics.
+grep -Fq 'dev.oreslang.launcher.OresMain "$@"' scripts/run-native-multifile-java.sh
+grep -Fq 'maven-dependency-plugin:3.8.1:build-classpath' scripts/run-native-multifile-java.sh
+if grep -Eq '^[[:space:]]+mvn.*exec:java' scripts/run-native-multifile-java.sh; then
+  echo 'STRUCTURAL_FAILURE: Maven-in-process guest launcher regressed' >&2; exit 1
+fi
 bash -n scripts/atto-negative-oracle.sh
 bash -n scripts/test-atto-negative-oracle.sh
 bash scripts/test-atto-negative-oracle.sh
