@@ -33,7 +33,7 @@ reject() {
 accept missing-import '/tmp/fixtures/missing-helper.atto:1:1: error: import "./does-not-exist" does not resolve to a file'
 accept ambiguous-import '/tmp/fixtures/ambiguous-import.atto:1:1: error: import fnc collide is ambiguous in contracts.atto'
 accept ownership-conflict '/tmp/fixtures/ownership-conflict.atto:1:1: error: overlapping mutable borrow arguments'
-accept aliased-module-leak 'oreslang: unknown class transport_contract.Request'
+accept aliased-module-leak '/tmp/fixtures/alias-leak.atto:1:1: error: unknown class transport_contract.Request'
 
 reject missing-import 1 '[ERROR] Failed to execute goal org.codehaus.mojo:exec-maven-plugin: The file could not be opened'
 reject ambiguous-import 1 '[ERROR] Could not find or load main class; import failed'
@@ -45,8 +45,8 @@ reject missing-import 2 '/tmp/fixtures/missing-helper.atto:1:1: error: import do
 reject missing-import 1 '/tmp/fixtures/other.atto:1:1: error: import does not resolve to a file'
 reject ambiguous-import 1 '/tmp/fixtures/ambiguous-import.atto:1:1: error: unrelated issue'
 reject ownership-conflict 1 '/tmp/fixtures/ownership-conflict.atto:1:1: error: syntax error'
-reject aliased-module-leak 1 'oreslang: unknown class innocent.Request'
-reject aliased-module-leak 137 'oreslang: unknown class transport_contract.Request'
+reject aliased-module-leak 1 '/tmp/fixtures/alias-leak.atto:1:1: error: unknown class innocent.Request'
+reject aliased-module-leak 137 '/tmp/fixtures/alias-leak.atto:1:1: error: unknown class transport_contract.Request'
 printf '42' > "$out"
 reject missing-import 1 '/tmp/fixtures/missing-helper.atto:1:1: error: import does not resolve to a file'
 : > "$out"
