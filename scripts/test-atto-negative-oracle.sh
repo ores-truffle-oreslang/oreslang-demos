@@ -47,19 +47,10 @@ reject ambiguous-import 1 '/tmp/fixtures/ambiguous-import.atto:1:1: error: unrel
 reject ownership-conflict 1 '/tmp/fixtures/ownership-conflict.atto:1:1: error: syntax error'
 reject aliased-module-leak 1 '/tmp/fixtures/alias-leak.atto:1:1: error: unknown class innocent.Request'
 reject aliased-module-leak 137 '/tmp/fixtures/alias-leak.atto:1:1: error: unknown class transport_contract.Request'
-# An otherwise correct-looking diagnostic must not be accepted when it is
-# accompanied by a stack trace or a second infrastructure failure.
-reject missing-import 1 
-reject missing-import 1 '/tmp/fixtures/missing-helper.atto:1:1: error: import does not resolve to a file'
-: > "$out"
-printf 'ATTO_NEGATIVE_ORACLE_HOST_SELF_TEST_PASS accepts=%s rejects=%s NOT_EXECUTED\n' "$passed" "$failed_expected"
-/tmp/fixtures/missing-helper.atto:1:1: error: import does not resolve to a file\n[ERROR] Maven failure'
+# Matching compiler diagnostics mixed with Maven/Java failures must fail.
+reject missing-import 1 $'/tmp/fixtures/missing-helper.atto:1:1: error: import does not resolve to a file\n[ERROR] Maven failure'
 reject ambiguous-import 1 '/tmp/fixtures/ambiguous-import.atto:1:1: error: import fnc collide is ambiguous in contracts.atto [ERROR] Maven'
-reject ownership-conflict 1 
-reject missing-import 1 '/tmp/fixtures/missing-helper.atto:1:1: error: import does not resolve to a file'
-: > "$out"
-printf 'ATTO_NEGATIVE_ORACLE_HOST_SELF_TEST_PASS accepts=%s rejects=%s NOT_EXECUTED\n' "$passed" "$failed_expected"
-/tmp/fixtures/ownership-conflict.atto:1:1: error: overlapping mutable borrow arguments\njava.lang.NoClassDefFoundError'
+reject ownership-conflict 1 $'/tmp/fixtures/ownership-conflict.atto:1:1: error: overlapping mutable borrow arguments\njava.lang.NoClassDefFoundError'
 printf '42' > "$out"
 reject missing-import 1 '/tmp/fixtures/missing-helper.atto:1:1: error: import does not resolve to a file'
 : > "$out"
