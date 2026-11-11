@@ -187,7 +187,7 @@ positive() {
 negative() {
   local label="$1" entry="$2"
   echo "CHECK $label (must reject before execution) entry=$entry"
-  if invoke "$label-check" "--check $entry"; then
+  if invoke "$label-check" --check "$entry"; then
     echo "FAIL $label: compiler admitted an intentionally invalid source" >&2; return 1
   fi
   local rc
