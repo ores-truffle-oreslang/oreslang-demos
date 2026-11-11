@@ -81,7 +81,7 @@ fi
 } >"$receipt/identity.txt"
 echo "Starting exact Java/GraalVM compiler build"
 env -u ORESLANG_PATH timeout --signal=TERM --kill-after=5s 600s \
-  mvn -B -ntp -q -e -f "$compiler/pom.xml" -DskipTests package \
+  mvn -B -ntp -q -e -f "$compiler/pom.xml" -DskipTests clean package \
   >"$receipt/compiler-build.stdout" 2>"$receipt/compiler-build.stderr"
 
 # Provide source and artifact identities, without claiming Native Image/AOT.
@@ -106,6 +106,25 @@ test -d "$compiler/target/classes" || {
   echo "NOT_EXECUTED: compiler classes are missing" >&2; exit 70;
 }
 # JAR hash and compiled class tree bind the launcher to the pinned source.
+# A classpath string digest alone is insufficient: dependency contents can
+# change at the same path. Hash each actual runtime dependency independently,
+# then verify that the compiler's compiled classes are present.
+printf '' >"$receipt/runtime-dependencies.sha256"
+IFS=':' read -r -a runtime_deps < "$receipt/classpath.txt"
+test "${#runtime_deps[@]}" -gt 0 || {
+  echo "NOT_EXECUTED: no runtime dependencies resolved" >&2; exit 70;
+}
+for dependency in "${runtime_deps[@]}"; do
+  if [[ -L "$dependency" || ! -f "$dependency" ]]; then
+    echo "NOT_EXECUTED: missing or symlinked runtime dependency" >&2; exit 70;
+  fi
+  sha256sum "$dependency" >>"$receipt/runtime-dependencies.sha256"
+done
+find "$compiler/target/classes" -type f -print0 | sort -z \
+  | xargs -0 -r sha256sum >"$receipt/compiler-classes.sha256"
+test -s "$receipt/compiler-classes.sha256" || {
+  echo "NOT_EXECUTED: no compiler bytecode to execute" >&2; exit 70;
+}
 runtime_classpath="$compiler/target/classes:$(cat "$receipt/classpath.txt")"
 printf '%s\n' "$runtime_classpath" | sha256sum > "$receipt/runtime-classpath.sha256"
 java -version >"$receipt/java-version.stdout" 2>"$receipt/java-version.stderr"
