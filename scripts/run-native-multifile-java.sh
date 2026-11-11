@@ -106,28 +106,12 @@ test -d "$compiler/target/classes" || {
   echo "NOT_EXECUTED: compiler classes are missing" >&2; exit 70;
 }
 # JAR hash and compiled class tree bind the launcher to the pinned source.
-# A classpath string digest alone is insufficient: dependency contents can
-# change at the same path. Hash each actual runtime dependency independently,
-# then verify that the compiler's compiled classes are present.
-printf '' >"$receipt/runtime-dependencies.sha256"
-# Here-string adds a newline even when Maven emits a classpath without one.
-IFS=':' read -r -a runtime_deps <<< "$(cat "$receipt/classpath.txt")"
-test "${#runtime_deps[@]}" -gt 0 || {
-  echo "NOT_EXECUTED: no runtime dependencies resolved" >&2; exit 70;
-}
-for dependency in "${runtime_deps[@]}"; do
-  if [[ -L "$dependency" || ! -f "$dependency" ]]; then
-    echo "NOT_EXECUTED: missing or symlinked runtime dependency" >&2; exit 70;
-  fi
-  sha256sum "$dependency" >>"$receipt/runtime-dependencies.sha256"
-done
-find "$compiler/target/classes" -type f -print0 | sort -z \
-  | xargs -0 -r sha256sum >"$receipt/compiler-classes.sha256"
-test -s "$receipt/compiler-classes.sha256" || {
-  echo "NOT_EXECUTED: no compiler bytecode to execute" >&2; exit 70;
-}
+# Audit Maven's runtime classpath as an untrusted input before execution.
+# This helper verifies every absolute JAR path, rejects alias/control-byte
+# injection and captures class/dependency SHA-256 identities.
+bash "$root/scripts/atto-runtime-classpath-audit.sh" \
+  "$compiler/target/classes" "$receipt/classpath.txt" "$receipt"
 runtime_classpath="$compiler/target/classes:$(cat "$receipt/classpath.txt")"
-printf '%s\n' "$runtime_classpath" | sha256sum > "$receipt/runtime-classpath.sha256"
 java -version >"$receipt/java-version.stdout" 2>"$receipt/java-version.stderr"
 
 # Record authored sources separately from compiled artifacts. This is
