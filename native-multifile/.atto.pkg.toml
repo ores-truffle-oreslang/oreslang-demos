@@ -1,0 +1,16 @@
+schema_version = "1"
+
+[project]
+name = "oreslang-native-multifile-demo"
+version = "0.1.0"
+root = "."
+
+[source]
+roots = ["src", "module"]
+import_paths = []
+
+[entrypoints]
+main = "src/main.atto"
+
+[build]
+library_profile = "std"
