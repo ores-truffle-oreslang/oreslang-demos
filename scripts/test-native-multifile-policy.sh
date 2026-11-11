@@ -45,7 +45,10 @@ if grep -Eq '^[[:space:]]+mvn.*exec:java' scripts/run-native-multifile-java.sh; 
 fi
 bash -n scripts/atto-negative-oracle.sh
 bash -n scripts/test-atto-negative-oracle.sh
+bash -n scripts/atto-runtime-classpath-audit.sh
+bash -n scripts/test-atto-runtime-classpath-audit.sh
 bash scripts/test-atto-negative-oracle.sh
+bash scripts/test-atto-runtime-classpath-audit.sh
 if grep -Eq '(^|[[:space:]])(cat|paste)[[:space:]].*\\*\\.atto|stitch-ores[.]sh' \
   scripts/run-native-multifile-java.sh; then
   echo 'STRUCTURAL_FAILURE: compiler runner contains a stitch fallback' >&2
