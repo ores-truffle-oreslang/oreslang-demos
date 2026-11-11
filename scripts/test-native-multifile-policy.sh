@@ -49,6 +49,14 @@ bash -n scripts/atto-runtime-classpath-audit.sh
 bash -n scripts/test-atto-runtime-classpath-audit.sh
 bash scripts/test-atto-negative-oracle.sh
 bash scripts/test-atto-runtime-classpath-audit.sh
+# Synthetic JUnit XML fixtures are safe for public/alternate-org host CI.
+# A passing self-test must always say NOT_EXECUTED for compiler guests.
+test -f scripts/ci/AttoDemoSevenReceiptVerifier.java
+test ! -L scripts/ci/AttoDemoSevenReceiptVerifier.java
+verifier_classes="$(mktemp -d)"
+trap 'rm -rf -- "$verifier_classes"' EXIT
+javac -Xlint:all -Werror -d "$verifier_classes" scripts/ci/AttoDemoSevenReceiptVerifier.java
+java -cp "$verifier_classes" AttoDemoSevenReceiptVerifier --self-test
 if grep -Eq '(^|[[:space:]])(cat|paste)[[:space:]].*\\*\\.atto|stitch-ores[.]sh' \
   scripts/run-native-multifile-java.sh; then
   echo 'STRUCTURAL_FAILURE: compiler runner contains a stitch fallback' >&2
