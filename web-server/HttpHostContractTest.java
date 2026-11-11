@@ -59,6 +59,7 @@ public final class HttpHostContractTest {
         accept("/a:b@c");
 
         testBoundedCaptureDeadline();
+        testOversizedCaptureRejectedImmediately();
         testHungCompilerAndDescendantCleanup();
         System.out.println("HTTP host target and guest-deadline contract tests passed");
     }
@@ -93,6 +94,27 @@ public final class HttpHostContractTest {
                     && error.getCause().getMessage().contains("deadline");
         }
         if (!rejected) throw new AssertionError("stalled output capture was not bounded");
+    }
+
+    private static void testOversizedCaptureRejectedImmediately() throws Exception {
+        java.lang.reflect.Method method = HttpHost.class.getDeclaredMethod(
+                "readUtf8Bounded", java.io.InputStream.class, int.class);
+        method.setAccessible(true);
+        byte[] content = new byte[1024 * 1024 + 1];
+        java.io.ByteArrayInputStream stream = new java.io.ByteArrayInputStream(content);
+        boolean rejected = false;
+        try {
+            method.invoke(null, stream, 1024 * 1024);
+        } catch (java.lang.reflect.InvocationTargetException error) {
+            rejected = error.getCause() instanceof java.io.IOException
+                    && error.getCause().getMessage().contains("exceeded");
+        }
+        if (!rejected) throw new AssertionError("oversized guest output was accepted");
+        if (stream.available() != 0) {
+            // At most one final read buffer beyond the configured limit is
+            // permitted, but a streaming writer must never require EOF.
+            throw new AssertionError("oversized capture unexpectedly left unread bytes");
+        }
     }
 
     // Host-only process regression: a fake compiler spawns a process retaining
