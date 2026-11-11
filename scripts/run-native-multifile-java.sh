@@ -91,42 +91,78 @@ test -s "$receipt/compiler-artifacts.sha256" || {
   echo "NOT_EXECUTED: no compiled compiler artifact identity" >&2; exit 70;
 }
 
+# Record authored sources separately from compiled artifacts. This is
+# provenance, not a substitute for actual compiler execution.
+find "$root/native-multifile" -type f -name '*.atto' -print0 \
+  | sort -z | xargs -0 -r sha256sum > "$receipt/fixture-sources.sha256"
+test -s "$receipt/fixture-sources.sha256"
+printf 'case\tphase\texit\tverdict\n' > "$receipt/cases.tsv"
+
 invoke() {
   local label="$1" arguments="$2"
-  # Never use a wrapper that could concatenate the source files.
+  local exit_code=0
+  # A Maven build or plugin failure may return 1; only the separate
+  # case-specific diagnostic oracle can certify intentional rejection.
   env -u ORESLANG_PATH timeout --signal=TERM --kill-after=5s 120s \
     mvn -B -ntp -q -e -f "$compiler/pom.xml" -DskipTests exec:java \
     "-Dexec.args=$arguments" \
-    >"$receipt/$label.stdout" 2>"$receipt/$label.stderr"
+    >"$receipt/$label.stdout" 2>"$receipt/$label.stderr" || exit_code=$?
+  printf '%s\n' "$exit_code" >"$receipt/$label.exit"
+  return "$exit_code"
 }
+
 positive() {
   local label="$1" entry="$2"
+  echo "CHECK $label entry=$entry"
+  if ! invoke "$label-check" "--check $entry"; then
+    echo "FAIL $label: linked source admission rejected the positive fixture" >&2; return 1
+  fi
+  if [[ -s "$receipt/$label-check.stdout" ]] || [[ -s "$receipt/$label-check.stderr" ]]; then
+    echo "FAIL $label: linked source check emitted unexpected diagnostics" >&2; return 1
+  fi
+  printf '%s\t%s\t0\tPASS\n' "$label" check >> "$receipt/cases.tsv"
+
   echo "EXECUTE $label entry=$entry"
-  if ! invoke "$label" "$entry"; then
+  if ! invoke "$label-run" "--platform=server $entry"; then
     echo "FAIL $label: compiler-backed guest invocation failed" >&2; return 1
   fi
   printf '42' >"$receipt/$label.expected"
-  diff -u "$receipt/$label.expected" "$receipt/$label.stdout" || {
-    echo "FAIL $label: guest output != 42" >&2; return 1;
-  }
+  if ! diff -u "$receipt/$label.expected" "$receipt/$label-run.stdout"; then
+    echo "FAIL $label: guest output != 42" >&2; return 1
+  fi
+  if [[ -s "$receipt/$label-run.stderr" ]]; then
+    echo "FAIL $label: guest emitted diagnostic stderr" >&2; return 1
+  fi
+  printf '%s\t%s\t0\tPASS\n' "$label" linked-guest >> "$receipt/cases.tsv"
   echo "PASS $label linked_guest_stdout=42"
 }
+
 negative() {
-  local label="$1" entry="$2" diagnostic="$3"
-  echo "EXECUTE $label (must reject) entry=$entry"
-  if invoke "$label" "$entry"; then
-    echo "FAIL $label: compiler accepted deliberately invalid import" >&2; return 1
+  local label="$1" entry="$2"
+  echo "CHECK $label (must reject before execution) entry=$entry"
+  if invoke "$label-check" "--check $entry"; then
+    echo "FAIL $label: compiler admitted an intentionally invalid source" >&2; return 1
   fi
-  if ! grep -Eiq "$diagnostic" "$receipt/$label.stderr"; then
-    echo "FAIL $label: rejection not attributable to expected import error" >&2; return 1
+  local rc
+  rc="$(cat "$receipt/$label-check.exit")"
+  if ! bash "$root/scripts/atto-negative-oracle.sh" \
+    "$label" "$rc" "$receipt/$label-check.stdout" "$receipt/$label-check.stderr"; then
+    echo "FAIL $label: rejection is not an exact compiler diagnostic" >&2; return 1
   fi
-  echo "PASS $label expected_rejection"
+  printf '%s\t%s\t%s\tPASS\n' "$label" check "$rc" >> "$receipt/cases.tsv"
+  echo "PASS $label exact_compile_time_rejection"
 }
 
+# One unverified compiler feature cannot be bypassed by stitching, emitting
+# expected text from a host shim, or treating a Maven failure as a guest pass.
 positive linked-function "$root/native-multifile/src/main.atto"
 positive linked-module-class "$root/native-multifile/module/main.atto"
-negative missing-import "$root/native-multifile/negative/missing-helper.atto" 'import|resolv|does.not.exist|file'
-negative aliased-module-leak "$root/native-multifile/module/alias-leak.atto" 'unknown|alias|transport_contract|import|class'
+positive ownership-valid "$root/native-multifile/negative/ownership-valid.atto"
 
-printf 'status=PASS\npositive_cases=2\nnegative_cases=2\n' >>"$receipt/identity.txt"
+negative missing-import "$root/native-multifile/negative/missing-helper.atto"
+negative ambiguous-import "$root/native-multifile/negative/ambiguous-import.atto"
+negative ownership-conflict "$root/native-multifile/negative/ownership-conflict.atto"
+negative aliased-module-leak "$root/native-multifile/module/alias-leak.atto"
+
+printf 'status=PASS\npositive_cases=3\nnegative_cases=4\n' >>"$receipt/identity.txt"
 echo "NATIVE_MULTIFILE_JAVA_GUEST_PASS demo=$ATTO_EXPECTED_DEMO_SHA compiler=$expected_compiler (JIT guest, not Native Image AOT)"
