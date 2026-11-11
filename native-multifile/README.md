@@ -67,7 +67,9 @@ bash scripts/run-native-multifile-java.sh
 
 The runner rejects mismatched/dirty source trees, malformed commit IDs,
 symlinked receipt directories, and unsafe Maven argument paths. It builds
-the exact compiler via Maven, invokes entrypoint `.atto` files, checks output and four negative compile-time failure cases with specific,
+the exact compiler via Maven, resolves its pinned runtime dependency classpath,
+then invokes `dev.oreslang.launcher.OresMain` in a **separate JVM process**
+so Maven plugin failures cannot be mistaken for guest diagnostics. It checks output and four negative compile-time failure cases with specific,
 anchored compiler diagnostics, and records demo/compiler Git heads and trees,
 source and artifact SHA-256 hashes, exact phase/exit codes, and per-case output.
 An exit code of `1` alone does **not** make a negative test pass, and an
