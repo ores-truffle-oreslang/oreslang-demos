@@ -100,7 +100,7 @@ public final class HttpHostContractTest {
         java.lang.reflect.Method method = HttpHost.class.getDeclaredMethod(
                 "readUtf8Bounded", java.io.InputStream.class, int.class);
         method.setAccessible(true);
-        byte[] content = new byte[1024 * 1024 + 1];
+        byte[] content = new byte[1024 * 1024 + 8192 * 5];
         java.io.ByteArrayInputStream stream = new java.io.ByteArrayInputStream(content);
         boolean rejected = false;
         try {
@@ -110,10 +110,9 @@ public final class HttpHostContractTest {
                     && error.getCause().getMessage().contains("exceeded");
         }
         if (!rejected) throw new AssertionError("oversized guest output was accepted");
-        if (stream.available() != 0) {
-            // At most one final read buffer beyond the configured limit is
-            // permitted, but a streaming writer must never require EOF.
-            throw new AssertionError("oversized capture unexpectedly left unread bytes");
+        if (stream.available() == 0) {
+            // Failing only after EOF would hang on an endless guest writer.
+            throw new AssertionError("oversized capture drained to EOF before failing");
         }
     }
 
