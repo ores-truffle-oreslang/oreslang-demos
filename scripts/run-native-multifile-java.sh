@@ -110,7 +110,8 @@ test -d "$compiler/target/classes" || {
 # change at the same path. Hash each actual runtime dependency independently,
 # then verify that the compiler's compiled classes are present.
 printf '' >"$receipt/runtime-dependencies.sha256"
-IFS=':' read -r -a runtime_deps < "$receipt/classpath.txt"
+# Here-string adds a newline even when Maven emits a classpath without one.
+IFS=':' read -r -a runtime_deps <<< "$(cat "$receipt/classpath.txt")"
 test "${#runtime_deps[@]}" -gt 0 || {
   echo "NOT_EXECUTED: no runtime dependencies resolved" >&2; exit 70;
 }
