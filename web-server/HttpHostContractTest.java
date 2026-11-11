@@ -140,9 +140,9 @@ public final class HttpHostContractTest {
                 throw new AssertionError("fake compiler chmod failed");
             }
 
-            String java = java.nio.file.Path.of(System.getProperty("java.home"),
+            String javaExecutable = java.nio.file.Path.of(System.getProperty("java.home"),
                     "bin", "java").toString();
-            ProcessBuilder pb = new ProcessBuilder(java, "-cp", "web-server",
+            ProcessBuilder pb = new ProcessBuilder(javaExecutable, "-cp", "web-server",
                     "HttpHost", source.toString());
             pb.environment().put("ORESLANG_COMPILER", compiler.toString());
             pb.redirectErrorStream(true);
