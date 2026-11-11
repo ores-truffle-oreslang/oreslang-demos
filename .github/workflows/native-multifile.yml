@@ -5,6 +5,11 @@ on:
       - 'native-multifile/**'
       - 'scripts/run-native-multifile-java.sh'
       - 'scripts/test-native-multifile-policy.sh'
+      - 'scripts/atto-negative-oracle.sh'
+      - 'scripts/test-atto-negative-oracle.sh'
+      - 'scripts/atto-runtime-classpath-audit.sh'
+      - 'scripts/test-atto-runtime-classpath-audit.sh'
+      - 'scripts/ci/AttoDemoSevenReceiptVerifier.java'
       - '.github/workflows/native-multifile.yml'
   workflow_dispatch:
     inputs:
@@ -37,6 +42,11 @@ jobs:
           set -euo pipefail
           [[ "$EXPECTED_HEAD" =~ ^[a-f0-9]{40}$ ]]
           test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
+      - name: Provision JDK 21 for source-free JUnit receipt mutation tests
+        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
+        with:
+          distribution: temurin
+          java-version: '21'
       - name: Run source-only native multi-file policy (NOT guest execution)
         shell: bash
         run: bash scripts/test-native-multifile-policy.sh
