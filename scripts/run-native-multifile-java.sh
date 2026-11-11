@@ -116,6 +116,9 @@ find "$root/native-multifile" -type f -name '*.atto' -print0 \
   | sort -z | xargs -0 -r sha256sum > "$receipt/fixture-sources.sha256"
 test -s "$receipt/fixture-sources.sha256"
 printf 'case\tphase\texit\tverdict\n' > "$receipt/cases.tsv"
+# A runner that has entered guest testing but fails mid-matrix must report
+# FAIL, never NOT_EXECUTED or a partially valid PASS.
+sed -i 's/^status=NOT_EXECUTED$/status=FAIL/' "$receipt/identity.txt"
 
 invoke() {
   local label="$1"
@@ -147,7 +150,7 @@ positive() {
   printf '%s\t%s\t0\tPASS\n' "$label" check >> "$receipt/cases.tsv"
 
   echo "EXECUTE $label entry=$entry"
-  if ! invoke "$label-run" --platform=server "$entry"; then
+  if ! invoke "$label-run" --mode=jit --platform=server "$entry"; then
     echo "FAIL $label: compiler-backed guest invocation failed" >&2; return 1
   fi
   printf '42' >"$receipt/$label.expected"
@@ -188,5 +191,6 @@ negative ambiguous-import "$root/native-multifile/negative/ambiguous-import.atto
 negative ownership-conflict "$root/native-multifile/negative/ownership-conflict.atto"
 negative aliased-module-leak "$root/native-multifile/module/alias-leak.atto"
 
-printf 'status=PASS\npositive_cases=3\nnegative_cases=4\n' >>"$receipt/identity.txt"
+sed -i 's/^status=FAIL$/status=PASS/' "$receipt/identity.txt"
+printf 'positive_cases=3\nnegative_cases=4\n' >>"$receipt/identity.txt"
 echo "NATIVE_MULTIFILE_JAVA_GUEST_PASS demo=$ATTO_EXPECTED_DEMO_SHA compiler=$expected_compiler (JIT guest, not Native Image AOT)"
