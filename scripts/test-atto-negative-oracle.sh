@@ -52,21 +52,22 @@ reject missing-import 1 $'/tmp/fixtures/missing-helper.atto:1:1: error: import d
 reject ambiguous-import 1 '/tmp/fixtures/ambiguous-import.atto:1:1: error: import fnc collide is ambiguous in contracts.atto [ERROR] Maven'
 reject ownership-conflict 1 $'/tmp/fixtures/ownership-conflict.atto:1:1: error: overlapping mutable borrow arguments\njava.lang.NoClassDefFoundError'
 # Binary and terminal-control bytes must not bypass the diagnostic oracle.
-reject missing-import 1 
-reject missing-import 1 '/tmp/fixtures/missing-helper.atto:1:1: error: import does not resolve to a file'
-: > "$out"
-printf 'ATTO_NEGATIVE_ORACLE_HOST_SELF_TEST_PASS accepts=%s rejects=%s NOT_EXECUTED\n' "$passed" "$failed_expected"
-/tmp/fixtures/missing-helper.atto:1:1: error: import does not resolve to a file\r'
-reject ambiguous-import 1 
-reject missing-import 1 '/tmp/fixtures/missing-helper.atto:1:1: error: import does not resolve to a file'
-: > "$out"
-printf 'ATTO_NEGATIVE_ORACLE_HOST_SELF_TEST_PASS accepts=%s rejects=%s NOT_EXECUTED\n' "$passed" "$failed_expected"
-/tmp/fixtures/ambiguous-import.atto:1:1: error: import fnc collide is ambiguous in contracts.atto\033[0m'
-printf '/tmp/fixtures/missing-helper.atto:1:1: error: import does not resolve to a file\\n' > "$err"
-printf '\\000' >> "$err"
-if bash "$oracle" missing-import 1 "$out" "$err" > /dev/null 2>&1; then
-  echo "ORACLE_SELF_TEST_FAILURE NUL byte accepted" >&2
-  exit 1
+printf '%s' '/tmp/fixtures/missing-helper.atto:1:1: error: import does not resolve to a file' > "$err"
+printf '\r\n' >> "$err"
+if bash "$oracle" missing-import 1 "$out" "$err" >/dev/null 2>&1; then
+  echo "ORACLE_SELF_TEST_FAILURE CR accepted" >&2; exit 1
+fi
+failed_expected=$((failed_expected + 1))
+printf '%s' '/tmp/fixtures/ambiguous-import.atto:1:1: error: import fnc collide is ambiguous in contracts.atto' > "$err"
+printf '\033[0m\n' >> "$err"
+if bash "$oracle" ambiguous-import 1 "$out" "$err" >/dev/null 2>&1; then
+  echo "ORACLE_SELF_TEST_FAILURE ANSI escape accepted" >&2; exit 1
+fi
+failed_expected=$((failed_expected + 1))
+printf '%s' '/tmp/fixtures/missing-helper.atto:1:1: error: import does not resolve to a file' > "$err"
+printf '\000\n' >> "$err"
+if bash "$oracle" missing-import 1 "$out" "$err" >/dev/null 2>&1; then
+  echo "ORACLE_SELF_TEST_FAILURE NUL accepted" >&2; exit 1
 fi
 failed_expected=$((failed_expected + 1))
 printf '42' > "$out"
