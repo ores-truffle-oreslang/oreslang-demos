@@ -91,6 +91,25 @@ test -s "$receipt/compiler-artifacts.sha256" || {
   echo "NOT_EXECUTED: no compiled compiler artifact identity" >&2; exit 70;
 }
 
+# Construct a complete, pinned runtime classpath once. Maven may resolve
+# dependencies and build classes, but it must NOT launch the guest: exec:java
+# can normalize exit codes, prepend unrelated plugin failures, or mix output.
+env -u ORESLANG_PATH timeout --signal=TERM --kill-after=5s 180s \
+  mvn -B -ntp -q -f "$compiler/pom.xml" \
+  org.apache.maven.plugins:maven-dependency-plugin:3.8.1:build-classpath \
+  "-Dmdep.outputFile=$receipt/classpath.txt" \
+  >"$receipt/classpath-build.stdout" 2>"$receipt/classpath-build.stderr"
+test -s "$receipt/classpath.txt" || {
+  echo "NOT_EXECUTED: Maven did not supply runtime dependency classpath" >&2; exit 70;
+}
+test -d "$compiler/target/classes" || {
+  echo "NOT_EXECUTED: compiler classes are missing" >&2; exit 70;
+}
+# JAR hash and compiled class tree bind the launcher to the pinned source.
+runtime_classpath="$compiler/target/classes:$(cat "$receipt/classpath.txt")"
+printf '%s\n' "$runtime_classpath" | sha256sum > "$receipt/runtime-classpath.sha256"
+java -version >"$receipt/java-version.stdout" 2>"$receipt/java-version.stderr"
+
 # Record authored sources separately from compiled artifacts. This is
 # provenance, not a substitute for actual compiler execution.
 find "$root/native-multifile" -type f -name '*.atto' -print0 \
@@ -99,14 +118,19 @@ test -s "$receipt/fixture-sources.sha256"
 printf 'case\tphase\texit\tverdict\n' > "$receipt/cases.tsv"
 
 invoke() {
-  local label="$1" arguments="$2"
+  local label="$1"
+  shift
   local exit_code=0
-  # A Maven build or plugin failure may return 1; only the separate
-  # case-specific diagnostic oracle can certify intentional rejection.
-  env -u ORESLANG_PATH timeout --signal=TERM --kill-after=5s 120s \
-    mvn -B -ntp -q -e -f "$compiler/pom.xml" -DskipTests exec:java \
-    "-Dexec.args=$arguments" \
-    >"$receipt/$label.stdout" 2>"$receipt/$label.stderr" || exit_code=$?
+  # Each --check or guest run starts a dedicated JVM. The host compiler
+  # command owns its real exit status and complete stdout/stderr; Maven cannot
+  # masquerade as a source diagnostic or conceal an application failure.
+  (
+    ulimit -f 4096  # Max regular output file size per process (Linux: 2 MiB).
+    env -u ORESLANG_PATH -u JAVA_TOOL_OPTIONS -u _JAVA_OPTIONS \
+        -u JDK_JAVA_OPTIONS -u CLASSPATH \
+      timeout --signal=TERM --kill-after=5s 120s \
+      java -cp "$runtime_classpath" dev.oreslang.launcher.OresMain "$@"
+  ) >"$receipt/$label.stdout" 2>"$receipt/$label.stderr" || exit_code=$?
   printf '%s\n' "$exit_code" >"$receipt/$label.exit"
   return "$exit_code"
 }
@@ -114,7 +138,7 @@ invoke() {
 positive() {
   local label="$1" entry="$2"
   echo "CHECK $label entry=$entry"
-  if ! invoke "$label-check" "--check $entry"; then
+  if ! invoke "$label-check" --check "$entry"; then
     echo "FAIL $label: linked source admission rejected the positive fixture" >&2; return 1
   fi
   if [[ -s "$receipt/$label-check.stdout" ]] || [[ -s "$receipt/$label-check.stderr" ]]; then
@@ -123,7 +147,7 @@ positive() {
   printf '%s\t%s\t0\tPASS\n' "$label" check >> "$receipt/cases.tsv"
 
   echo "EXECUTE $label entry=$entry"
-  if ! invoke "$label-run" "--platform=server $entry"; then
+  if ! invoke "$label-run" --platform=server "$entry"; then
     echo "FAIL $label: compiler-backed guest invocation failed" >&2; return 1
   fi
   printf '42' >"$receipt/$label.expected"
