@@ -20,6 +20,8 @@ public final class HttpHost {
     private static final int GUEST_TIMEOUT_SECONDS = 10;
     private static final int MAX_GUEST_OUTPUT_BYTES = 1024 * 1024;
     private static final int MAX_ROUTES = 256;
+    private static final int MAX_TRACKED_DESCENDANTS = 256;
+    private static final long DESCENDANT_SCAN_NANOS = TimeUnit.MILLISECONDS.toNanos(25);
     private static final int MAX_PATH_CHARS = 2048;
     private static final int MAX_CONTENT_TYPE_CHARS = 256;
 
@@ -84,26 +86,67 @@ public final class HttpHost {
                 source.toString()
         ).start();
 
-        try (var io = Executors.newVirtualThreadPerTaskExecutor()) {
-            Future<String> stdout = io.submit(
+        // The deadline covers process exit AND both pipe captures. Closing an
+        // ExecutorService waits for blocked readers, even after the compiler
+        // exits if a child inherits stdout/stderr. Never close/join it here.
+        long deadlineNanos = System.nanoTime()
+                + TimeUnit.SECONDS.toNanos(GUEST_TIMEOUT_SECONDS);
+        var io = Executors.newVirtualThreadPerTaskExecutor();
+        Future<String> stdout = null;
+        Future<String> stderr = null;
+        Map<Long, ProcessHandle> observedDescendants = new LinkedHashMap<>();
+        try {
+            stdout = io.submit(
                     () -> readUtf8Bounded(process.getInputStream(), MAX_GUEST_OUTPUT_BYTES));
-            Future<String> stderr = io.submit(
+            stderr = io.submit(
                     () -> readUtf8Bounded(process.getErrorStream(), MAX_GUEST_OUTPUT_BYTES));
 
-            if (!process.waitFor(GUEST_TIMEOUT_SECONDS, TimeUnit.SECONDS)) {
-                process.destroy();
-                if (!process.waitFor(1, TimeUnit.SECONDS)) {
-                    process.destroyForcibly();
-                    process.waitFor(2, TimeUnit.SECONDS);
+            // Observe descendants before their direct parent exits; reparented
+            // children otherwise disappear from ProcessHandle.descendants().
+            while (true) {
+                observeDescendants(process, observedDescendants);
+                // A reader can fail before process exit (for example at the
+                // byte cap). Abort promptly instead of waiting the full
+                // process deadline for a still-running or blocked writer.
+                if (stdout.isDone()) getCaptured(stdout, "stdout", deadlineNanos);
+                if (stderr.isDone()) getCaptured(stderr, "stderr", deadlineNanos);
+                long remaining = deadlineNanos - System.nanoTime();
+                if (remaining <= 0) {
+                    throw new IllegalStateException("Oreslang guest exceeded the demo timeout");
                 }
-                throw new IllegalStateException("Oreslang guest exceeded the demo timeout");
+                if (process.waitFor(Math.min(remaining, DESCENDANT_SCAN_NANOS),
+                        TimeUnit.NANOSECONDS)) {
+                    break;
+                }
             }
 
             return new GuestOutput(
                     process.exitValue(),
-                    getCaptured(stdout, "stdout"),
-                    getCaptured(stderr, "stderr")
+                    getCaptured(stdout, "stdout", deadlineNanos),
+                    getCaptured(stderr, "stderr", deadlineNanos)
             );
+        } finally {
+            if (stdout != null) stdout.cancel(true);
+            if (stderr != null) stderr.cancel(true);
+            io.shutdownNow();
+            // Best-effort cleanup, not an OS sandbox. A process group or job
+            // object is needed to catch forks between descendant scans.
+            for (ProcessHandle child : observedDescendants.values()) {
+                if (child.isAlive()) child.destroyForcibly();
+            }
+            if (process.isAlive()) process.destroyForcibly();
+        }
+    }
+
+    private static void observeDescendants(Process process,
+                                           Map<Long, ProcessHandle> observed) {
+        try (var children = process.toHandle().descendants()) {
+            children.forEach(child -> {
+                observed.putIfAbsent(child.pid(), child);
+                if (observed.size() > MAX_TRACKED_DESCENDANTS) {
+                    throw new IllegalStateException("guest descendant process budget exceeded");
+                }
+            });
         }
     }
 
@@ -114,23 +157,28 @@ public final class HttpHost {
         int read;
 
         while ((read = input.read(buffer)) != -1) {
-            long before = total;
             total += read;
-            if (before < maxBytes) {
-                int keep = (int) Math.min(read, maxBytes - before);
-                kept.write(buffer, 0, keep);
+            // Stop consuming an oversized stream immediately rather than
+            // waiting for EOF from a process that may never close its pipes.
+            if (total > maxBytes) {
+                throw new IOException("guest output exceeded " + maxBytes + " bytes");
             }
-        }
-
-        if (total > maxBytes) {
-            throw new IOException("guest output exceeded " + maxBytes + " bytes");
+            kept.write(buffer, 0, read);
         }
         return kept.toString(StandardCharsets.UTF_8);
     }
 
-    private static String getCaptured(Future<String> future, String streamName) throws Exception {
+    private static String getCaptured(Future<String> future, String streamName,
+                                      long deadlineNanos) throws Exception {
+        long remaining = deadlineNanos - System.nanoTime();
+        if (remaining <= 0) {
+            throw new IllegalStateException("guest " + streamName + " capture exceeded deadline");
+        }
         try {
-            return future.get();
+            return future.get(remaining, TimeUnit.NANOSECONDS);
+        } catch (java.util.concurrent.TimeoutException error) {
+            throw new IllegalStateException(
+                    "guest " + streamName + " capture exceeded deadline", error);
         } catch (ExecutionException error) {
             throw new IOException("failed to capture guest " + streamName, error.getCause());
         }
