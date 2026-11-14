@@ -1,0 +1,8 @@
+import module transport_contract as tc from "./contract.atto";
+
+// Must resolve the imported module-qualified class, not a local homonym.
+pub fnc main(): void {
+  val tc.Request request = new tc.Request(42);
+  stdio.stdout.write(request.value);
+  return;
+}

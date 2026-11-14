@@ -1,0 +1,9 @@
+// Separate module-qualified class source unit.
+define module transport_contract as
+  pub define class Request as
+    pub val int value;
+    pub constructor(int value) {
+      self.value = value;
+    }
+  end
+end

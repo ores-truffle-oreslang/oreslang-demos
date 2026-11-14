@@ -1,0 +1,8 @@
+// Two distinct module exports intentionally share one selected function name.
+// The importer may not silently pick either owner.
+define module left_api as
+  pub fnc collide(): int { return 17; }
+end
+define module right_api as
+  pub fnc collide(): int { return 25; }
+end

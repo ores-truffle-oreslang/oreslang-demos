@@ -1,0 +1,8 @@
+import module transport_contract as tc from "./contract.atto";
+
+// The original unaliased name must not be visible after aliasing.
+pub fnc main(): void {
+  val transport_contract.Request request = new transport_contract.Request(42);
+  stdio.stdout.write(request.value);
+  return;
+}

@@ -1,0 +1,7 @@
+import fnc answer from "./math";
+
+// The linked Java/Graal guest must load math.atto as a separate source unit.
+pub fnc main(): void {
+  stdio.stdout.write(answer());
+  return;
+}
